@@ -39,6 +39,20 @@ namespace Cutulu.Core
         => (float)Math.Round(value * (float)Math.Pow(10, decimalSpaces)) / (float)Math.Pow(10, decimalSpaces);
 
         /// <summary>
+        /// Rounds a float to the nearest multiple of the given step using decimals to prevent floating point errors.
+        /// This is more accurate but also more expensive than Round(step).
+        /// </summary>
+        public static float RoundExact(this float value, float step = 1f)
+        {
+            if (step <= 0) throw new ArgumentException("Step must be greater than zero.");
+
+            decimal _step = (decimal)step;
+            decimal _value = (decimal)value;
+
+            return (float)(Math.Round(_value / _step) * _step);
+        }
+
+        /// <summary>
         /// Rounds a float to the nearest multiple of the given step.
         /// A final rounding pass to 5 decimal places is applied to reduce visible floating-point artifacts
         /// (e.g. 8.400001 -> 8.40000 -> 8.4).
