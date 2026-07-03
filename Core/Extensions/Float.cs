@@ -1,38 +1,53 @@
 namespace Cutulu.Core
 {
+    using System.Runtime.CompilerServices;
     using System;
 
     public static class Floatf
     {
         public static readonly float Pi = (float)Math.PI;
 
-        public static float abs(this float f) => Math.Abs(f);
+        public static float Abs(this float f) => Math.Abs(f);
 
-        public static float max(this float f0, float f1) => Math.Max(f0, f1);
-        public static float max(this float f0, float f1, float f2) => max(max(f0, f1), f2);
-        public static float max(this float f0, float f1, float f2, float f3) => max(max(f0, f1, f2), f3);
+        public static float Max(this float value, params float[] values)
+        {
+            if (values.IsEmpty()) return value;
 
-        public static float min(this float f0, float f1) => Math.Min(f0, f1);
-        public static float min(this float f0, float f1, float f2) => min(min(f0, f1), f2);
-        public static float min(this float f0, float f1, float f2, float f3) => min(min(f0, f1, f2), f3);
+            foreach (var _value in values)
+                value = Math.Max(value, _value);
 
-        public static float toDegrees(this float radians) => radians / Pi * 180;
-        public static float toRadians(this float degree) => degree / 180 * Pi;
+            return value;
+        }
+
+        public static float Min(this float value, params float[] values)
+        {
+            if (values.IsEmpty()) return value;
+
+            foreach (var _value in values)
+                value = Math.Min(value, _value);
+
+            return value;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float toDegrees(this float radians) => radians / Pi * 180f;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float toRadians(this float degree) => degree / 180f * Pi;
 
         public static float Round(this float value, byte decimalSpaces)
-        => (float)System.Math.Round(value * (float)Math.Pow(10, decimalSpaces)) / (float)Math.Pow(10, decimalSpaces);
+        => (float)Math.Round(value * (float)Math.Pow(10, decimalSpaces)) / (float)Math.Pow(10, decimalSpaces);
 
+        /// <summary>
+        /// Rounds a float to the nearest multiple of the given step.
+        /// A final rounding pass to 5 decimal places is applied to reduce visible floating-point artifacts
+        /// (e.g. 8.400001 -> 8.40000 -> 8.4).
+        /// </summary>
         public static float Round(this float value, float step = 1f)
         {
-            if (step <= 0) throw new System.ArgumentException("Step must be greater than zero.");
+            if (step <= 0) throw new ArgumentException("Step must be greater than zero.");
 
-            float remainder = (value = (float)Math.Ceiling(value / 0.001f) * 0.001f) % step;
-            float halfStep = step / 2f;
-
-            return
-                remainder >= halfStep ? value + step - remainder :
-                remainder < -halfStep ? value - step - remainder :
-                value - remainder;
+            return (float)Math.Round(Math.Round(value / step) * step, 5);
         }
 
         public static float GetAngleToFront180(this float fromAngle, float toAngle, bool useRadians = false)
