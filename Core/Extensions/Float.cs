@@ -30,9 +30,15 @@ namespace Cutulu.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float toDegrees(this float radians) => radians / Pi * 180f;
+        public static float ToDegrees(this float radians) => radians / Pi * 180f;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float ToRadians(this float degree) => degree / 180f * Pi;
+
+        [Obsolete("Use .ToDegrees() instead"), MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float toDegrees(this float radians) => radians / Pi * 180f;
+
+        [Obsolete("Use .ToRadians() instead"), MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float toRadians(this float degree) => degree / 180f * Pi;
 
         public static float Round(this float value, byte decimalSpaces)
