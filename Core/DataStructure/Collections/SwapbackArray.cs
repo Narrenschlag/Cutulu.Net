@@ -275,6 +275,18 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
     }
 
     public void TryAddRange(params T[] items) => TryAddRange(items.AsSpan());
+
+    public int IndexOf(T item)
+    {
+        if (item.NotNull())
+            for (int i = 0; i < _count; i++)
+            {
+                if (EqualityComparer<T>.Default.Equals(_data[i], item))
+                    return i;
+            }
+
+        return -1;
+    }
 }
 
 class SwapbackArrayEncoder() : BinaryEncoder(typeof(SwapbackArray<>))
