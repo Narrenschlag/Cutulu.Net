@@ -16,6 +16,7 @@ using System.IO;
 /// </summary>
 public readonly partial struct Directory
 {
+    /// <summary>Sample: C://Directory/Name/</summary>
     public readonly string SystemPath;
 
 #if GODOT4_0_OR_GREATER
@@ -70,7 +71,7 @@ public readonly partial struct Directory
 
     public string GetDirectoryName()
     {
-        return Path.GetFileName(SystemPath);
+        return Path.GetFileName(SystemPath.TrimEnd('/', '\\'));
     }
 
     /// <summary>Creates the directory if it doesn't exist.</summary>
@@ -199,6 +200,9 @@ public readonly partial struct Directory
         bool restrictExtensions = fileTypes.NotEmpty();
         var list = new SwapbackArray<File>();
 
+        for (int i = 0; i < fileTypes.Length; i++)
+            fileTypes[i] = fileTypes[i].TrimStart('*');
+
 #if GODOT4_0_OR_GREATER
         if (GodotPath.StartsWith("res://") || GodotPath.StartsWith("user://"))
         {
@@ -219,12 +223,12 @@ public readonly partial struct Directory
 
                     else
                     {
-                        foreach (var ext in fileTypes)
+                        foreach (var _ext in fileTypes)
                         {
                             // Check both original extension and .remap version
                             bool matches =
-                                fileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase) ||
-                                fileName.EndsWith(ext + ".remap", StringComparison.OrdinalIgnoreCase);
+                                fileName.EndsWith(_ext, StringComparison.OrdinalIgnoreCase) ||
+                                fileName.EndsWith(_ext + ".remap", StringComparison.OrdinalIgnoreCase);
 
                             if (matches)
                             {
@@ -249,32 +253,8 @@ public readonly partial struct Directory
             dir.ListDirEnd();
             return list.AsSpan();
         }
+#endif
 
-        // Fall back to system path method
-        var subs = ACCESS.GetFilesAt(SystemPath);
-        if (subs != null)
-        {
-            foreach (var file in subs)
-            {
-                if (restrictExtensions == false)
-                {
-                    list.Add(new File(SystemPath + "/" + file));
-                }
-
-                else
-                {
-                    foreach (var ext in fileTypes)
-                    {
-                        if (file.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
-                        {
-                            list.Add(new File(SystemPath + "/" + file));
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-#else
         var subs = System.IO.Directory.GetFiles(SystemPath);
         foreach (var file in subs)
         {
@@ -295,7 +275,7 @@ public readonly partial struct Directory
                 }
             }
         }
-#endif
+
         return list.AsSpan();
     }
 }

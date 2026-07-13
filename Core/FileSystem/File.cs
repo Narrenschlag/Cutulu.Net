@@ -202,6 +202,35 @@ public partial class File : IDisposable
         }
     }
 
+#if GODOT4_0_OR_GREATER
+    /// <summary>
+    /// Reads an image from the file. Supported formats are png, jpg, jpeg, webp, exr, dds.
+    /// </summary>
+    public Image ReadImage()
+    {
+        return Image.LoadFromFile(SystemPath);
+    }
+
+    /// <summary>
+    /// Writes an image to the file. Supported formats are png, jpg, jpeg, webp, exr, dds.
+    /// </summary>
+    public void Write(Image image)
+    {
+        if (image.IsNull()) return;
+
+        Write(SystemPath.GetExtension() switch
+        {
+            ".png" => image.SavePngToBuffer(),
+            ".jpg" => image.SaveJpgToBuffer(),
+            ".jpeg" => image.SaveJpgToBuffer(),
+            ".webp" => image.SaveWebpToBuffer(),
+            ".exr" => image.SaveExrToBuffer(),
+            ".dds" => image.SaveDdsToBuffer(),
+            _ => image.SavePngToBuffer()
+        });
+    }
+#endif
+
     #endregion
 
     #region Encoder functions
