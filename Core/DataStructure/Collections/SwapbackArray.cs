@@ -167,6 +167,11 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
         return Array.IndexOf(_data, item, 0, _count) >= 0; // Only search within Count
     }
 
+    public bool Contains(T item, out int index)
+    {
+        return (index = Array.IndexOf(_data, item, 0, _count)) >= 0; // Only search within Count
+    }
+
     public void CopyTo(T[] array, int arrayIndex)
     {
         Array.Copy(_data, 0, array, arrayIndex, _count);
@@ -227,12 +232,30 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
     /// <summary>
     /// Adds item to the array if it is not null and not already in it.
     /// </summary>
-    public bool TryAdd(T item)
-    {
-        if (item.IsNull() || Contains(item)) return false;
+    public bool TryAdd(T item) => TryAdd(item, out _);
 
-        Add(item);
-        return true;
+    /// <summary>
+    /// Adds item to the array if it is not null and not already in it.
+    /// </summary>
+    public bool TryAdd(T item, out int index)
+    {
+        if (item.IsNull())
+        {
+            index = -1;
+            return false;
+        }
+
+        else if (Contains(item, out index))
+        {
+            return false;
+        }
+
+        else
+        {
+            index = Count;
+            Add(item);
+            return true;
+        }
     }
 
     /// <summary>
