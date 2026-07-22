@@ -344,7 +344,7 @@ public static partial class Nodef
 
         if (node.IsNull()) return bounds;
 
-        if (node is VisualInstance3D visual)
+        if (node is VisualInstance3D visual && visual.IsInsideTree())
             bounds = visual.GlobalTransform * visual.GetAabb();
 
         foreach (Node child in node.GetChildren())
