@@ -94,6 +94,12 @@ public sealed class LocalDecoder : IDisposable
         return _reader.Decode<T>();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public object Decode(Type type)
+    {
+        return _reader.Decode(type);
+    }
+
     public byte[] ReadBytes(int count) => _reader.ReadBytes(count);
 
 #if WEB_APP
