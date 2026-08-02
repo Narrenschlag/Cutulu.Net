@@ -230,13 +230,12 @@ public static partial class Nodef
             if (node.IsNull()) return;
             if (includeSelf) add(node);
 
+            layer++;
+
+            if (layerDepth > 0 && layer > layerDepth) return;
+
             foreach (Node n in node.GetChildren())
-            {
-                if (layerDepth < 1 || layer < layerDepth)
-                {
-                    loop(n, true, (byte)(layer + 1));
-                }
-            }
+                loop(n, true, layer);
         }
 
         void add(Node node)
@@ -253,24 +252,26 @@ public static partial class Nodef
         return result.NotNull();
     }
 
-    public static T GetNodeInChildren<T>(this Node node, bool includeSelf = true) where T : Node
+    public static T GetNodeInChildren<T>(this Node node, bool includeSelf = true, byte layerDepth = 0) where T : Node
     {
         if (node.IsNull()) return null;
 
         T result = null;
-        loop(node, includeSelf);
+        loop(node, includeSelf, 0);
         return result;
 
-        void loop(Node node, bool includeSelf)
+        void loop(Node node, bool includeSelf, byte layer)
         {
             if (result != null) return;
 
             if (includeSelf && set(node)) return;
 
+            layer++;
+
+            if (layerDepth > 0 && layer > layerDepth) return;
+
             foreach (Node n in node.GetChildren())
-            {
-                loop(n, true);
-            }
+                loop(n, true, layer);
         }
 
         bool set(Node node)
