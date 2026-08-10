@@ -1,5 +1,6 @@
 namespace Cutulu.Network
 {
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Threading.Tasks;
     using System.Net;
@@ -15,8 +16,8 @@ namespace Cutulu.Network
             FormatHandler(new PingHandler((byte)ConnectionTypeEnum.Ping)),
         ]);
 
-        public readonly Dictionary<IPEndPoint, Connection> ConnectionsByUdp = [];
-        public readonly Dictionary<TcpSocket, Connection> Connections = [];
+        public readonly ConcurrentDictionary<IPEndPoint, Connection> ConnectionsByUdp = [];
+        public readonly ConcurrentDictionary<TcpSocket, Connection> Connections = [];
         public readonly TcpHost TcpHost;
         public readonly UdpHost UdpHost;
 
@@ -213,8 +214,8 @@ namespace Cutulu.Network
         {
             if (Connections.TryGetValue(socket, out var connection))
             {
-                ConnectionsByUdp.TryRemove(connection.EndPoint);
-                Connections.Remove(socket);
+                ConnectionsByUdp.TryRemove(connection.EndPoint, out _);
+                Connections.TryRemove(socket, out _);
 
                 socket.Close();
 
