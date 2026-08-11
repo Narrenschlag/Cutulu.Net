@@ -14,8 +14,11 @@ namespace Cutulu.Network
         public IPEndPoint EndPoint { get; private set; } = endpoint;
         public HostManager Host { get; private set; } = host;
 
-        public readonly HashSet<IListener> Listeners = [];
         public long UserId { get; private set; } = uid;
+
+        /// <summary> Keep in mind to lock(_listenerLock) for modification. This is not thread safe by default. </summary>
+        public readonly HashSet<IListener> Listeners = [];
+        public readonly object _listenerLock = new();
 
         public bool IsConnected => Socket != null && Socket.IsConnected;
         long ITagable.GetUniqueTagID() => UserId;
@@ -80,7 +83,7 @@ namespace Cutulu.Network
                 lock (Host) if (Host.ReadPacket(this, key, unpackedBuffer)) return;
 
                 // Host didn't consume the packet, let the listeners read it
-                lock (Listeners)
+                lock (_listenerLock)
                 {
                     LocalDecoder decoder = new(unpackedBuffer);
 

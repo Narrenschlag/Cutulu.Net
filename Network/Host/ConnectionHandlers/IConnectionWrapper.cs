@@ -7,7 +7,7 @@ public interface IConnectionWrapper
     public long NextUID();
 
     public int GetMaxClientCount();
-    public int GetClientCount();
+    public int GetConnectionCount();
 }
 
 public interface IPingWrapper : IConnectionWrapper

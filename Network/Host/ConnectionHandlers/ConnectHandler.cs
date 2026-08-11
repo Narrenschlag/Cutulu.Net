@@ -39,7 +39,7 @@ public class ConnectHandler(byte key) : ConnectionHandler(key)
         //    wrapper.InvokeDisconnect(existingConnection.Socket);
 
         // Stop connection if max client limit has been reached
-        if (wrapper.GetMaxClientCount() > 0 && wrapper.GetClientCount() >= wrapper.GetMaxClientCount())
+        if (wrapper.GetMaxClientCount() > 0 && wrapper.GetConnectionCount() >= wrapper.GetMaxClientCount())
         {
             Debug.LogError($"Maximum client capacity has been reached. Cancelling connection.");
             return (false, null);

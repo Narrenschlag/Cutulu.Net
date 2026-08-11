@@ -11,7 +11,9 @@ namespace Cutulu.Network
 
     public partial class ClientManager
     {
+        /// <summary> Keep in mind to lock(_listenerLock) for modification. This is not thread safe by default. </summary>
         public readonly HashSet<IListener> Listeners = [];
+        public readonly object _listenerLock = new();
 
         public readonly TcpSocket TcpClient;
         public readonly UdpSocket UdpClient;
@@ -174,7 +176,8 @@ namespace Cutulu.Network
                 using LocalDecoder localDecoder = new(_buffer);
 
                 // Host didn't consume the packet, let the listeners read it
-                foreach (var _listener in Listeners)
+                IListener[] listeners = [.. Listeners];
+                foreach (var _listener in listeners)
                 {
                     localDecoder.ResetPosition();
 
