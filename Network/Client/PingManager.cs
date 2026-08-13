@@ -14,7 +14,7 @@ namespace Cutulu.Network
 
             if (await socket.Connect(address, port))
             {
-                await socket.SendAsync(new[] { (byte)ConnectionTypeEnum.Ping });
+                await socket.SendAsync([(byte)ConnectionTypeEnum.Ping]);
 
                 try
                 {

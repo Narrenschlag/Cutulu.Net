@@ -158,11 +158,16 @@ public class ConnectionContainer()
     {
         if (action is null) return;
 
+        Connection[] snapshot;
+
         lock (_connectionLock)
         {
-            foreach (var connection in GetConnections())
-                action.Invoke(connection);
+            snapshot = [.. GetConnections()];
         }
+
+        foreach (var connection in snapshot)
+            if (connection != null)
+                action.Invoke(connection);
     }
 
     public void ClearConnections()
