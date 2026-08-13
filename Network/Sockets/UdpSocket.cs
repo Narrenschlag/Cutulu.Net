@@ -88,7 +88,7 @@ namespace Cutulu.Network.Sockets
                 if (ipAddress.AddressFamily == AddressFamily.InterNetwork)
                     ipAddress = ipAddress.MapToIPv6();
             }
-            
+
             catch
             {
                 Debug.LogError($"[{GetType().Name}] Failed to resolve hostname or IP: {address}");
@@ -228,6 +228,28 @@ namespace Cutulu.Network.Sockets
             {
                 await Client.SendAsync(memory.ToArray(), endpoints[i], _token);
             }
+
+            return _token.IsCancellationRequested == false;
+        }
+
+        /// <summary>
+        /// Sends data to host async.
+        /// </summary>
+        public virtual async Task<bool> SendAsync(IPEndPoint endpoint, params byte[][] buffers)
+        {
+            if (IsConnected == false || endpoint == null || buffers.IsEmpty()) return false;
+
+            using var memory = new MemoryStream();
+            var _token = Token;
+
+            for (int i = 0; i < buffers.Length && _token.IsCancellationRequested == false; i++)
+            {
+                if (buffers[i].NotEmpty())
+                    await memory.WriteAsync(buffers[i], _token);
+            }
+
+            if (_token.IsCancellationRequested == false)
+                await Client.SendAsync(memory.ToArray(), endpoint, _token);
 
             return _token.IsCancellationRequested == false;
         }

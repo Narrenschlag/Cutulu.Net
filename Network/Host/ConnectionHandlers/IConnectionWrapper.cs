@@ -3,7 +3,6 @@ namespace Cutulu.Network.Sockets;
 public interface IConnectionWrapper
 {
     public void InvokeConnect(Connection connection);
-    public void InvokeDisconnect(TcpSocket socket);
     public long NextUID();
 
     public int GetMaxClientCount();
@@ -19,6 +18,6 @@ public interface IPingWrapper : IConnectionWrapper
 public interface IConnectWrapper : IConnectionWrapper
 {
     // Connection
-    public void AssignConnection(Connection connection, TcpSocket socket);
+    public void AssignConnection(Connection connection);
     public Connection CreateConnection(TcpSocket socket, byte[] buffer);
 }

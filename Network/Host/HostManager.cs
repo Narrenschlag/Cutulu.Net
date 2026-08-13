@@ -15,8 +15,8 @@ namespace Cutulu.Network
             FormatHandler(new PingHandler((byte)ConnectionTypeEnum.Ping)),
         ]);
 
-        private readonly Dictionary<IPEndPoint, Connection> ConnectionsByUdp = [];
-        private readonly Dictionary<TcpSocket, Connection> Connections = [];
+        public readonly ConnectionContainer Connections = new();
+        public readonly object _trafficLock = new();
 
         public readonly TcpHost TcpHost;
         public readonly UdpHost UdpHost;
@@ -29,10 +29,7 @@ namespace Cutulu.Network
 
         public bool IsListening => TcpHost?.IsListening ?? false;
 
-        private readonly object _connectionLock = new();
-
         public Action<Connection, short, byte[]> Received;
-        public Action<Connection> Connected, Disconnected;
         public Action Started, Stopped;
 
         public HostManager()
@@ -63,20 +60,9 @@ namespace Cutulu.Network
         public Wrapper GetWrapper() => wrapper ??= new(this);
         private Wrapper wrapper;
 
-        public IReadOnlyCollection<Connection> GetConnections() => Connections.Values;
+        public Span<Connection> GetConnections() => Connections.GetConnections();
 
-        public int GetConnectionCount() => Connections.Count;
-
-        public void EnumerateConnections(Action<Connection> action)
-        {
-            if (action is null) return;
-
-            lock (_connectionLock)
-            {
-                foreach (var connection in Connections.Values)
-                    action.Invoke(connection);
-            }
-        }
+        public int GetConnectionCount() => Connections.ConnectionCount;
 
         #region Validators
 
@@ -105,11 +91,7 @@ namespace Cutulu.Network
         {
             Stop();
 
-            lock (_connectionLock)
-            {
-                ConnectionsByUdp.Clear();
-                Connections.Clear();
-            }
+            Connections.ClearConnections();
 
             TcpHost.UseRouterPortForwarding = UseRouterPortForwarding;
             TcpHost.Start(TcpPort);
@@ -125,17 +107,10 @@ namespace Cutulu.Network
         /// </summary>
         public virtual void Stop()
         {
-            EnumerateConnections(connection => connection?.Kick());
+            Connections.Enumerate(connection => connection?.Kick());
 
             TcpHost.Stop();
             UdpHost.Stop();
-
-            lock (_connectionLock)
-            {
-                ConnectionsByUdp.Clear();
-                Connections.Clear();
-                NextUID = 0;
-            }
         }
 
         /// <summary>
@@ -148,15 +123,10 @@ namespace Cutulu.Network
         /// </summary>
         public virtual void Send(short key, object obj, bool reliable, params Connection[] connections)
         {
-            if (connections.IsEmpty())
-            {
-                connections = [.. Connections.Values];
-            }
+            var span = connections.IsEmpty() ? Connections.GetConnections() : connections;
 
-            for (int i = 0; i < connections.Length; i++)
-            {
-                connections[i]?.Send(key, obj, reliable);
-            }
+            for (int i = 0; i < span.Length; i++)
+                span[i]?.Send(key, obj, reliable);
         }
 
         /// <summary>
@@ -169,15 +139,10 @@ namespace Cutulu.Network
         /// </summary>
         public virtual async Task SendAsync(short key, object obj, bool reliable, params Connection[] connections)
         {
-            if (connections.IsEmpty())
-            {
-                connections = [.. Connections.Values];
-            }
+            connections = connections.IsEmpty() ? [.. Connections.GetConnections()] : connections;
 
             for (int i = 0; i < connections.Length; i++)
-            {
                 await connections[i]?.SendAsync(key, obj, reliable);
-            }
         }
 
         /// <summary>
@@ -197,11 +162,6 @@ namespace Cutulu.Network
         protected virtual void StoppedEvent(TcpHost host)
         {
             lock (this) Stopped?.Invoke();
-        }
-
-        protected virtual void ConnectedEvent(Connection _connection)
-        {
-            lock (this) Connected?.Invoke(_connection);
         }
 
         private async void HandleNewClient(TcpSocket socket)
@@ -234,30 +194,17 @@ namespace Cutulu.Network
 
         private void DisconnectEvent(TcpSocket socket)
         {
-            Connection connection;
+            if (Connections.TryGetConnection(socket, out var connection) == false) return;
 
-            lock (_connectionLock)
-            {
-                if (Connections.TryGetValue(socket, out connection) == false) return;
-
-                ConnectionsByUdp.Remove(connection.EndPoint);
-                Connections.Remove(socket);
-            }
+            Connections._RemovedConnection(connection);
 
             socket.Close();
-
-            lock (this) Disconnected?.Invoke(connection);
         }
 
         private void UdpReceiveEvent(IPEndPoint ip, byte[] buffer)
         {
-            Connection connection;
-
-            lock (_connectionLock)
-                if (ConnectionsByUdp.TryGetValue(ip, out connection) == false)
-                    return;
-
-            connection.ReceiveBuffer(buffer);
+            if (Connections.TryGetConnection(ip, out var connection))
+                connection.ReceiveBuffer(buffer);
         }
 
         #endregion
@@ -266,9 +213,7 @@ namespace Cutulu.Network
         {
             public readonly HostManager Manager = manager;
 
-            public void InvokeDisconnect(TcpSocket socket) => Manager.DisconnectEvent(socket);
-
-            public void InvokeConnect(Connection connection) => Manager.ConnectedEvent(connection);
+            public void InvokeConnect(Connection connection) => Manager.Connections._InvokeConnectEvent(connection);
 
             public int GetMaxClientCount() => Manager.MaxClients;
             public int GetConnectionCount() => Manager.GetConnectionCount();
@@ -277,32 +222,14 @@ namespace Cutulu.Network
 
             public byte[] GetPingBuffer() => Manager.PingBuffer;
 
-            public void AssignConnection(Connection connection, TcpSocket socket)
+            public void AssignConnection(Connection connection)
             {
-                Connection existingConnection;
-                bool isDisconnect;
-
-                // Remove already connected connections with same address
-                lock (Manager._connectionLock)
-                    isDisconnect = Manager.ConnectionsByUdp.TryGetValue(connection.EndPoint, out existingConnection);
-
-                if (isDisconnect) InvokeDisconnect(existingConnection.Socket);
-
-                lock (Manager._connectionLock)
-                {
-                    Manager.ConnectionsByUdp[connection.EndPoint] = connection;
-                    Manager.Connections[socket] = connection;
-                }
+                Manager.Connections._AddedConnection(connection);
             }
 
             public Connection CreateConnection(TcpSocket socket, byte[] buffer)
             {
-                return new(
-                    NextUID(),
-                    Manager,
-                    socket,
-                    new(((IPEndPoint)socket.Socket.RemoteEndPoint).Address, buffer.Decode<int>())
-                );
+                return Manager.Connections._CreateConnection(Manager, socket, buffer);
             }
         }
     }

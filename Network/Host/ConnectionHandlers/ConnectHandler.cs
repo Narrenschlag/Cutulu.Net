@@ -45,7 +45,7 @@ public class ConnectHandler(byte key) : ConnectionHandler(key)
             return (false, null);
         }
 
-        wrapper.AssignConnection(connection, socket);
+        wrapper.AssignConnection(connection);
 
         //Debug.LogR($"[color=magenta][b][ConnectHandler][/b][/color] New connection: {connection.UserId}");
         await socket.ClearBuffer();

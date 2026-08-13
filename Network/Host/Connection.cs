@@ -68,7 +68,7 @@ namespace Cutulu.Network
                 var packet = PacketProtocol.Pack(key, obj, out var length);
 
                 if (reliable) await Socket?.SendAsync(length.Encode(), packet);
-                else await Host.UdpHost.Listener?.SendAsync(new[] { EndPoint }, packet);
+                else await Host.UdpHost.Listener?.SendAsync(EndPoint, packet);
             }
         }
 
@@ -80,7 +80,11 @@ namespace Cutulu.Network
             if (PacketProtocol.Unpack(buffer, out var key, out var unpackedBuffer))
             {
                 // First let the host read the packet
-                lock (Host) if (Host.ReadPacket(this, key, unpackedBuffer)) return;
+                lock (Host._trafficLock)
+                {
+                    if (Host.ReadPacket(this, key, unpackedBuffer))
+                        return;
+                }
 
                 // Host didn't consume the packet, let the listeners read it
                 lock (_listenerLock)
@@ -93,11 +97,14 @@ namespace Cutulu.Network
 
                         if ((bool)(_listener?._Receive(key, decoder))) return;
                     }
+
+                    Received?.Invoke(key, unpackedBuffer);
                 }
 
-                // No one consumed the packet, let the events read it
-                lock (this) Received?.Invoke(key, unpackedBuffer);
-                lock (Host) Host.Received?.Invoke(this, key, unpackedBuffer);
+                lock (Host._trafficLock)
+                {
+                    Host.Received?.Invoke(this, key, unpackedBuffer);
+                }
             }
         }
     }
