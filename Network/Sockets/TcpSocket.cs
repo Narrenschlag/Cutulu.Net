@@ -24,7 +24,7 @@ namespace Cutulu.Network.Sockets
 
         public string Address { get; private set; }
         public int Port { get; private set; }
-        public long UID { get; set; } 
+        public long UID { get; set; }
 
         private bool Receiving { get; set; }
         private TcpHost Host { get; set; }
@@ -332,8 +332,12 @@ namespace Cutulu.Network.Sockets
                         Debug.LogR($"[color=indianred]{prefix}_{ex.Message}");
                         break;
 
-                    case IOException iox when iox.Message.ToLower().Contains("unable"):
-                        Debug.LogR($"[color=indianred]{prefix}_CONNECTION_CLOSED");
+                    case IOException iox when iox.Message.Contains("unable", StringComparison.CurrentCultureIgnoreCase):
+                        Debug.LogR($"[color=indianred]{prefix}_CONNECTION_FAILED: [/color]{ex.Message}");
+                        break;
+
+                    case IOException iox when iox.Message.Contains("remote closed", StringComparison.CurrentCultureIgnoreCase):
+                        Debug.LogR($"[color=indianred]{prefix}_CONNECTION_CLOSED: [/color]Disconnected.");
                         break;
 
                     case OperationCanceledException:
