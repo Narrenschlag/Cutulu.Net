@@ -6,6 +6,9 @@ using System.Net;
 using Sockets;
 using System;
 
+/// <summary>
+/// Thread-safe connection container for host connection management.
+/// </summary>
 public class ConnectionContainer()
 {
     private readonly Dictionary<IPEndPoint, ushort> ConnectionsByUdp = [];
@@ -13,11 +16,15 @@ public class ConnectionContainer()
     private readonly Dictionary<UNumber64, ushort> ConnectionsByUid = [];
     private readonly SwapbackArray<Connection> Connections = [];
     private readonly object _connectionLock = new();
-
-    public Action<Connection> Connected, Disconnected;
-
-    public int ConnectionCount => Connections.Count;
     private UNumber64 NextUid;
+
+    /// <summary> Called when a connection is established. </summary>
+    public Action<Connection> Connected;
+    /// <summary> Called when a connection is disconnected. </summary>
+    public Action<Connection> Disconnected;
+
+    /// <summary> Count of currently established connections. </summary>
+    public int ConnectionCount => Connections.Count;
 
     private void _RegisterConnection(Connection connection, ushort idx)
     {
@@ -47,6 +54,9 @@ public class ConnectionContainer()
         }
     }
 
+    /// <summary>
+    /// Removes a connection from the container. This is a thread safe operation in terms of connections.
+    /// </summary>
     public void _RemovedConnection(Connection connection)
     {
         if (connection is null) return;
@@ -59,6 +69,9 @@ public class ConnectionContainer()
         Disconnected?.Invoke(connection);
     }
 
+    /// <summary>
+    /// Creates a connection from a tcp socket and a buffer. This is a thread safe operation in terms of connections.
+    /// </summary>
     public Connection _CreateConnection(HostManager manager, TcpSocket socket, byte[] buffer)
     {
         var ip = new IPEndPoint(((IPEndPoint)socket.Socket.RemoteEndPoint).Address, buffer.Decode<int>());
@@ -67,7 +80,7 @@ public class ConnectionContainer()
 
         lock (_connectionLock)
         {
-            if (TryGetConnection(ip, out var oldConnection))
+            if (TryGetConnection(ip, out var oldConnection, false))
             {
                 userId = oldConnection.UserId;
 
@@ -86,6 +99,9 @@ public class ConnectionContainer()
         return new Connection(userId, manager, socket, ip);
     }
 
+    /// <summary>
+    /// Adds a connection to the container. This is a thread safe operation in terms of connections.
+    /// </summary>
     public void _AddedConnection(Connection connection)
     {
         if (connection is null) return;
@@ -99,50 +115,68 @@ public class ConnectionContainer()
         }
     }
 
+    /// <summary>
+    /// Invokes the connected event on the connection.
+    /// </summary>
     public void _InvokeConnectEvent(Connection connection)
     {
         Connected?.Invoke(connection);
     }
 
+    /// <summary>
+    /// Returns all connections as a non-thread safe span.
+    /// </summary>
     public Span<Connection> GetConnections() => Connections.AsSpan();
 
-    public bool TryGetConnection(UNumber64 uid, out Connection connection)
+    /// <summary>
+    /// Returns true and a connection if the connection is found. Otherwise false and null.
+    /// If connectedOnly is true, the connection must be connected.
+    /// </summary>
+    public bool TryGetConnection(UNumber64 uid, out Connection connection, bool connectedOnly = true)
     {
         lock (_connectionLock)
         {
             if (ConnectionsByUid.TryGetValue(uid, out var idx))
-                return TryGetConnectionByIdx(idx, out connection);
+                return TryGetConnectionByIdx(idx, out connection, connectedOnly);
         }
 
         connection = null;
         return false;
     }
 
-    public bool TryGetConnection(TcpSocket socket, out Connection connection)
+    /// <summary>
+    /// Returns true and a connection if the connection is found. Otherwise false and null.
+    /// If connectedOnly is true, the connection must be connected.
+    /// </summary>
+    public bool TryGetConnection(TcpSocket socket, out Connection connection, bool connectedOnly = true)
     {
         lock (_connectionLock)
         {
             if (ConnectionsByTcp.TryGetValue(socket, out var idx))
-                return TryGetConnectionByIdx(idx, out connection);
+                return TryGetConnectionByIdx(idx, out connection, connectedOnly);
         }
 
         connection = null;
         return false;
     }
 
-    public bool TryGetConnection(IPEndPoint endpoint, out Connection connection)
+    /// <summary>
+    /// Returns true and a connection if the connection is found. Otherwise false and null.
+    /// If connectedOnly is true, the connection must be connected.
+    /// </summary>
+    public bool TryGetConnection(IPEndPoint endpoint, out Connection connection, bool connectedOnly = true)
     {
         lock (_connectionLock)
         {
             if (ConnectionsByUdp.TryGetValue(endpoint, out var idx))
-                return TryGetConnectionByIdx(idx, out connection);
+                return TryGetConnectionByIdx(idx, out connection, connectedOnly);
         }
 
         connection = null;
         return false;
     }
 
-    private bool TryGetConnectionByIdx(ushort idx, out Connection connection)
+    private bool TryGetConnectionByIdx(ushort idx, out Connection connection, bool connectedOnly)
     {
         if (idx >= Connections.Count)
         {
@@ -151,9 +185,12 @@ public class ConnectionContainer()
         }
 
         connection = Connections[idx];
-        return true;
+        return connectedOnly == false || (connection?.IsConnected ?? false);
     }
 
+    /// <summary>
+    /// Enumerates all connections. This is a thread safe operation in terms of connections.
+    /// </summary>
     public void Enumerate(Action<Connection> action)
     {
         if (action is null) return;
@@ -170,6 +207,9 @@ public class ConnectionContainer()
                 action.Invoke(connection);
     }
 
+    /// <summary>
+    /// Clears all connections. Do not call this at runtime or you will corrupt your connection references.
+    /// </summary>
     public void ClearConnections()
     {
         lock (_connectionLock)

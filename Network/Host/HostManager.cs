@@ -194,7 +194,7 @@ namespace Cutulu.Network
 
         private void DisconnectEvent(TcpSocket socket)
         {
-            if (Connections.TryGetConnection(socket, out var connection) == false) return;
+            if (Connections.TryGetConnection(socket, out var connection, false) == false) return;
 
             Connections._RemovedConnection(connection);
 
@@ -203,7 +203,7 @@ namespace Cutulu.Network
 
         private void UdpReceiveEvent(IPEndPoint ip, byte[] buffer)
         {
-            if (Connections.TryGetConnection(ip, out var connection))
+            if (Connections.TryGetConnection(ip, out var connection, false))
                 connection.ReceiveBuffer(buffer);
         }
 
