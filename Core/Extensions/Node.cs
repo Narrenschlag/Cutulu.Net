@@ -107,18 +107,21 @@ public static partial class Nodef
         if (node is Node3D node3D && node3D.IsInsideTree())
             globalTransform = node3D.GlobalTransform;
 
+        bool onMainThread = Application.IsOnMainThread();
         var oldParent = node.GetParent();
         if (oldParent != null)
         {
             // Remove from old parent
-            oldParent.RemoveChild(node);
+            if (onMainThread) oldParent.RemoveChild(node);
+            else oldParent.CallDeferred("remove_child", node);
 
             // Force immediate processing to fully detach
             node.Owner = null;
         }
 
         // Add to new parent
-        newParent.AddChild(node);
+        if (onMainThread) newParent.AddChild(node);
+        else newParent.CallDeferred("add_child", node);
 
         // Restore transform if Node3D
         if (globalTransform.HasValue && node is Node3D node3D2)

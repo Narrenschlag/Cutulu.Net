@@ -16,11 +16,20 @@ public static class TaskUtils
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static async Task SyncToProcess() => await NextFrame();
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static async Task NextPhysicsFrame()
     {
         var tree = (Godot.SceneTree)Godot.Engine.GetMainLoop();
         await tree.ToSignal(tree, Godot.SceneTree.SignalName.PhysicsFrame);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool IsOnMainThread() => Application.IsOnMainThread();
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static async Task SyncToPhysicsProcess() => await NextPhysicsFrame();
 
     public static async Task WaitFrames(int frames)
     {
@@ -46,7 +55,7 @@ public static class TaskUtils
             await Task.Delay(1);
 
 #if GODOT4_0_OR_GREATER
-        if (waitForMainThread) await NextFrame();
+        if (waitForMainThread) await SyncToProcess();
 #endif
     }
 
@@ -64,7 +73,7 @@ public static class TaskUtils
         await Task.Delay(milliseconds);
 
 #if GODOT4_0_OR_GREATER
-        if (waitForMainThread) await NextFrame();
+        if (waitForMainThread) await SyncToProcess();
 #endif
     }
 }
