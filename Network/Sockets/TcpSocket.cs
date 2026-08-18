@@ -333,7 +333,7 @@ namespace Cutulu.Network.Sockets
                         break;
 
                     case IOException iox when iox.Message.Contains("unable", StringComparison.CurrentCultureIgnoreCase):
-                        Debug.LogR($"[color=indianred]{prefix}_CONNECTION_FAILED: [/color]{ex.Message}");
+                        Debug.LogR($"[color=indianred]{prefix}_CONNECTION_FAILED: (propably host has been closed) [/color]{ex.Message}");
                         break;
 
                     case IOException iox when iox.Message.Contains("remote closed", StringComparison.CurrentCultureIgnoreCase):
