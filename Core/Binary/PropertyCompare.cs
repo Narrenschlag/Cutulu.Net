@@ -40,7 +40,8 @@ namespace Cutulu.Core
             if (obj == other) return true;
 
             // Null comparison
-            if (obj.IsNull() || other.IsNull()) return false;
+            if (obj.IsNull() != other.IsNull()) return false;
+            if (obj is null && other is null) return true;
 
             var type = obj.GetType();
             if (type != other.GetType()) return false;
