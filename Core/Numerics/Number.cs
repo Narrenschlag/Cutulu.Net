@@ -195,10 +195,10 @@ namespace Cutulu.Core
                 writer.Write(number.Buffer);
             }
 
-            public override object Decode(System.IO.BinaryReader reader, System.Type type)
+            public override object Decode(Decoder.Marshal marshal, System.Type type)
             {
-                var _length = reader.ReadByte();
-                return new Number() { Buffer = reader.ReadBytes(_length), };
+                var _length = marshal.Reader.ReadByte();
+                return new Number() { Buffer = marshal.Reader.ReadBytes(_length), };
             }
         }
 

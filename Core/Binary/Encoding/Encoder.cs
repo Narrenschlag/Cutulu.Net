@@ -9,6 +9,8 @@ using System;
 /// </summary>
 public static class Encoder
 {
+    public static bool AdvancedLogging = false;
+
     /// <summary>
     /// Writes encoded buffer of an object to given BinaryWriter
     /// </summary>
@@ -28,7 +30,12 @@ public static class Encoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Encode<T>(this BinaryWriter _writer, T _obj)
     {
-        if (_obj.NotNull()) Encode(_writer, _obj, _obj.GetType());
+        if (AdvancedLogging) Debug.Log($"Encoding {typeof(T)}");
+
+        if (_obj.NotNull()) Encode(_writer, _obj, typeof(T));
+
+        // Write empty array
+        else if (typeof(T).IsArray) _writer.Write(new UNumber8());
     }
 
     /// <summary>

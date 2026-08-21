@@ -26,7 +26,7 @@ public abstract class BinaryEncoder
 
     public abstract void Encode(BinaryWriter writer, Type type, object value);
 
-    public abstract object Decode(BinaryReader reader, Type type);
+    public abstract object Decode(Decoder.Marshal reader, Type type);
 
     public static SwapbackArray<EncoderMeta> EncodeMeta(BinaryWriter writer, params MetaEntry[] entries)
     {

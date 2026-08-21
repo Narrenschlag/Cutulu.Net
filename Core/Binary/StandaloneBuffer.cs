@@ -46,12 +46,12 @@ public struct StandaloneBuffer
             writer.Encode(buffer.Value);
         }
 
-        public override object Decode(BinaryReader reader, Type type)
+        public override object Decode(Decoder.Marshal marshal, Type type)
         {
-            if (reader.ReadBoolean() == false) return new StandaloneBuffer();
+            if (marshal.Reader.ReadBoolean() == false) return new StandaloneBuffer();
 
-            Type _type = Type.GetType(reader.ReadString());
-            return new StandaloneBuffer(reader.Decode(_type));
+            Type _type = Type.GetType(marshal.Reader.ReadString());
+            return new StandaloneBuffer(marshal.Decode(_type));
         }
     }
 }

@@ -30,16 +30,16 @@ namespace Cutulu.Core
                 writer.Encode((UNumber8)dateTime.Second);
             }
 
-            public override object Decode(System.IO.BinaryReader reader, System.Type type)
+            public override object Decode(Decoder.Marshal marshal, System.Type type)
             {
                 return new System.DateTime(
-                    reader.Decode<UNumber16>(),
-                    reader.Decode<UNumber8>(),
-                    reader.Decode<UNumber8>(),
+                    marshal.Decode<UNumber16>(),
+                    marshal.Decode<UNumber8>(),
+                    marshal.Decode<UNumber8>(),
 
-                    reader.Decode<UNumber8>(),
-                    reader.Decode<UNumber8>(),
-                    reader.Decode<UNumber8>()
+                    marshal.Decode<UNumber8>(),
+                    marshal.Decode<UNumber8>(),
+                    marshal.Decode<UNumber8>()
                 );
             }
         }
@@ -56,12 +56,12 @@ namespace Cutulu.Core
                 writer.Encode(meta.GetValue(value), meta.ValueType);
             }
 
-            public override object Decode(BinaryReader reader, Type type)
+            public override object Decode(Decoder.Marshal marshal, Type type)
             {
                 var meta = Cache.GetOrAdd(type, CreateMetadata);
 
-                var key = reader.Decode(meta.KeyType);
-                var value = reader.Decode(meta.ValueType);
+                var key = marshal.Decode(meta.KeyType);
+                var value = marshal.Decode(meta.ValueType);
 
                 return Activator.CreateInstance(type, key, value);
             }
@@ -113,7 +113,7 @@ namespace Cutulu.Core
                 }
             }
 
-            public override object Decode(BinaryReader reader, Type type)
+            public override object Decode(Decoder.Marshal marshal, Type type)
             {
                 var itemType = ItemTypeCache.GetOrAdd(type, t =>
                 {
@@ -122,12 +122,12 @@ namespace Cutulu.Core
                             .GetGenericArguments()[0];
                 });
 
-                var count = reader.Decode<UNumber64>();
+                var count = marshal.Decode<UNumber64>();
                 var listType = typeof(List<>).MakeGenericType(itemType);
                 var list = (IList)Activator.CreateInstance(listType);
 
                 for (int i = 0; i < count; i++)
-                    list.Add(reader.Decode(itemType));
+                    list.Add(marshal.Decode(itemType));
 
                 if (type.IsAssignableFrom(listType))
                     return list;
@@ -152,13 +152,13 @@ namespace Cutulu.Core
                 }
             }
 
-            public override object Decode(BinaryReader reader, Type type)
+            public override object Decode(Decoder.Marshal marshal, Type type)
             {
                 var (argTypes, _) = TupleEncoderCache.Cache.GetOrAdd(type, CreateMetadata);
 
                 var args = new object[argTypes.Length];
                 for (int i = 0; i < argTypes.Length; i++)
-                    args[i] = reader.Decode(argTypes[i]);
+                    args[i] = marshal.Decode(argTypes[i]);
 
                 return Activator.CreateInstance(type, args);
             }

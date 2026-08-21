@@ -141,9 +141,9 @@ public struct BoolByte
             writer.Write(((BoolByte)value).RawByte);
         }
 
-        public override object Decode(BinaryReader reader, Type type)
+        public override object Decode(Decoder.Marshal marshal, Type type)
         {
-            return new BoolByte(reader.ReadByte());
+            return new BoolByte(marshal.Reader.ReadByte());
         }
     }
 }

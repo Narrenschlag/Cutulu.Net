@@ -7,7 +7,7 @@ using System;
 /// <summary>
 /// Static class for decoding binary data
 /// </summary>
-public static class Decoder
+public static partial class Decoder
 {
     /// <summary>
     /// Decodes a buffer from given BinaryReader into an object
@@ -15,7 +15,7 @@ public static class Decoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object Decode(this BinaryReader _reader, Type _type)
     {
-        return Decode(_reader, _type, true);
+        return Decode(new Marshal(_reader), _type);
     }
 
     /// <summary>
@@ -139,8 +139,8 @@ public static class Decoder
             {
                 switch (ex)
                 {
-                    case EndOfStreamException _:
-                        Debug.LogError($"Cannot decode as typeof({_type}): Unable to read beyond the end of the stream. Buffer may belong to another data type. [{BinaryEncoding.LastPropertyType.FullName}, {BinaryEncoding.LastPropertyName}?, {_buffer.Size()} b]");
+                    case EndOfStreamException _ex:
+                        Debug.LogError($"Cannot decode as typeof({_type}): Unable to read beyond the end of the stream. Buffer may belong to another data type. [{BinaryEncoding.LastPropertyType.FullName}, {BinaryEncoding.LastPropertyName}?, {_buffer.Size()} b]\n<{_ex.Message}>\n{Environment.StackTrace}");
                         Debug.LogWarning($"Error Message: {ex.Message}\n{ex.StackTrace}");
                         break;
 
@@ -166,13 +166,17 @@ public static class Decoder
         return _decoded;
     }
 
-    private static object Decode(BinaryReader reader, Type type, bool _first_iteration)
+    private static object Decode(Decoder.Marshal marshal, Type type)
     {
         BinaryEncoding.LastPropertyType = type;
 
+        var firstIteration = marshal.FirstIterationConsumable;
+        marshal.FirstIterationConsumable = false;
+        var reader = marshal.Reader;
+
         return type switch
         {
-            var t when t == typeof(byte[]) => _first_iteration ? reader.ReadRemainingBytes() : reader.ReadBytes(Decode<UNumber64>(reader)),
+            var t when t == typeof(byte[]) => firstIteration ? reader.ReadRemainingBytes() : reader.ReadBytes(Decode<UNumber64>(reader)),
             var t when t == typeof(string) => reader.ReadString(),
             var t when t == typeof(bool) => reader.ReadBoolean(),
             var t when t == typeof(char) => reader.ReadChar(),
@@ -189,16 +193,19 @@ public static class Decoder
             var t when t == typeof(double) => reader.ReadDouble(),
             var t when t == typeof(float) => reader.ReadSingle(),
 
-            _ => BinaryEncoding.TryGetEncoder(type, out var decoder) ? decoder.Decode(reader, type) :
-                DecodeUnknown(reader, type)
+            _ => BinaryEncoding.TryGetEncoder(type, out var decoder) ?
+                decoder.Decode(marshal, type) :
+                DecodeUnknown(marshal, type)
         };
 
-        static object DecodeUnknown(BinaryReader _reader, Type _type)
+        static object DecodeUnknown(Decoder.Marshal _marshal, Type _type)
         {
+            var _reader = _marshal.Reader;
+
             // Enums
             if (_type.IsEnum)
             {
-                return Enum.ToObject(_type, Decode(_reader, _type.GetEnumUnderlyingType(), false));
+                return Enum.ToObject(_type, _marshal.Decode(_type.GetEnumUnderlyingType()));
             }
 
             // Arrays
@@ -212,26 +219,26 @@ public static class Decoder
                     throw new EndOfStreamException($"Unable to read array. Reached end of stream. {_reader.RemainingByteLength()}");
                 }
 
-                var _array = Array.CreateInstance(_type, Decode<UNumber64>(_reader));
+                var _array = Array.CreateInstance(_type, _marshal.Decode<UNumber64>());
 
                 for (ushort i = 0; i < _array.Length; i++)
                 {
-                    _array.SetValue(Decode(_reader, _type, false), i);
+                    _array.SetValue(_marshal.Decode(_type), i);
                 }
 
                 return _array;
             }
 
             // Classes and structs
-            else return AutoDecode(_reader, _type);
+            else return AutoDecode(_marshal, _type);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static T AutoDecode<T>(this BinaryReader _reader) => AutoDecode(_reader, typeof(T)) is T _t ? _t : default;
+    public static T AutoDecode<T>(this Marshal _marshal) => AutoDecode(_marshal, typeof(T)) is T _t ? _t : default;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static object AutoDecode(this BinaryReader _reader, Type _type)
+    public static object AutoDecode(this Marshal _marshal, Type _type)
     {
         try
         {
@@ -244,7 +251,7 @@ public static class Decoder
             {
                 BinaryEncoding.LastPropertyName = info.GetName();
 
-                info.SetValue(_output, Decode(_reader, info.GetValueType(), false));
+                info.SetValue(_output, _marshal.Decode(info.GetValueType()));
             }
 
             return _output;

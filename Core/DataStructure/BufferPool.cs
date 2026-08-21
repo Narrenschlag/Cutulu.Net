@@ -185,14 +185,14 @@ public class BufferPool : IDisposable
             }
         }
 
-        public override object Decode(BinaryReader reader, Type type)
+        public override object Decode(Decoder.Marshal marshal, Type type)
         {
-            var pool = new BufferPool(reader, reader.ReadInt32());
+            var pool = new BufferPool(marshal.Reader, marshal.Reader.ReadInt32());
 
-            int count = reader.ReadInt32();
+            int count = marshal.Reader.ReadInt32();
             for (int i = 0; i < count; i++)
             {
-                pool.OrderedStartIndexArray.Add(reader.ReadInt32());
+                pool.OrderedStartIndexArray.Add(marshal.Reader.ReadInt32());
             }
 
             return pool;

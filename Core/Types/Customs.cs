@@ -39,7 +39,7 @@ namespace Cutulu.Core
                 writer.Write(obj.B);
             }
 
-            public override object Decode(BinaryReader reader, System.Type type) => new ColorRGB(reader.ReadByte(), reader.ReadByte(), reader.ReadByte());
+            public override object Decode(Decoder.Marshal marshal, System.Type type) => new ColorRGB(marshal.Reader.ReadByte(), marshal.Reader.ReadByte(), marshal.Reader.ReadByte());
         }
     }
 
@@ -68,7 +68,7 @@ namespace Cutulu.Core
                 writer.Write(obj.Y);
             }
 
-            public override object Decode(BinaryReader reader, System.Type type) => new Vector2S(reader.ReadInt16(), reader.ReadInt16());
+            public override object Decode(Decoder.Marshal marshal, System.Type type) => new Vector2S(marshal.Reader.ReadInt16(), marshal.Reader.ReadInt16());
         }
     }
 #endif
@@ -83,7 +83,7 @@ namespace Cutulu.Core
         {
             public override void Encode(BinaryWriter writer, System.Type type, object value) => writer.Write(((Vector38)value).Values);
 
-            public override object Decode(BinaryReader reader, System.Type type) => new Vector38(reader.ReadByte(), reader.ReadByte(), reader.ReadByte());
+            public override object Decode(Decoder.Marshal marshal, System.Type type) => new Vector38(marshal.Reader.ReadByte(), marshal.Reader.ReadByte(), marshal.Reader.ReadByte());
         }
     }
 }

@@ -335,7 +335,7 @@ class SwapbackArrayEncoder() : BinaryEncoder(typeof(SwapbackArray<>))
         }
     }
 
-    public override object Decode(BinaryReader reader, Type type)
+    public override object Decode(Decoder.Marshal marshal, Type type)
     {
         var itemType = ItemTypeCache.GetOrAdd(type, t =>
         {
@@ -344,12 +344,12 @@ class SwapbackArrayEncoder() : BinaryEncoder(typeof(SwapbackArray<>))
                     .GetGenericArguments()[0];
         });
 
-        var count = reader.Decode<UNumber64>();
+        var count = marshal.Decode<UNumber64>();
         var arrayType = itemType.MakeArrayType(); // T[]
         var array = (Array)Activator.CreateInstance(arrayType, (int)count);
 
         for (int i = 0; i < count; i++)
-            array.SetValue(reader.Decode(itemType), i);
+            array.SetValue(marshal.Decode(itemType), i);
 
         return Activator.CreateInstance(type, array); // matches SwapbackArray(params T[] data)
     }

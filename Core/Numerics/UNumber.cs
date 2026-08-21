@@ -129,9 +129,9 @@ class UNumberEncoder() : BinaryEncoder(typeof(UNumber<>))
         }
     }
 
-    public override object Decode(System.IO.BinaryReader reader, System.Type type)
+    public override object Decode(Decoder.Marshal marshal, System.Type type)
     {
-        var firstByte = reader.ReadByte();
+        var firstByte = marshal.Reader.ReadByte();
 
         // Recover the ulong value
         ulong innerValue;
@@ -144,10 +144,10 @@ class UNumberEncoder() : BinaryEncoder(typeof(UNumber<>))
             var typeEnum = (TypeEnum)(firstByte - DIV + 1);
             innerValue = typeEnum switch
             {
-                TypeEnum.Byte => reader.ReadByte(),
-                TypeEnum.UShort => reader.ReadUInt16(),
-                TypeEnum.UInt => reader.ReadUInt32(),
-                TypeEnum.ULong => reader.ReadUInt64(),
+                TypeEnum.Byte => marshal.Reader.ReadByte(),
+                TypeEnum.UShort => marshal.Reader.ReadUInt16(),
+                TypeEnum.UInt => marshal.Reader.ReadUInt32(),
+                TypeEnum.ULong => marshal.Reader.ReadUInt64(),
                 _ => 0
             };
         }
