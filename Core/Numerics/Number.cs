@@ -187,12 +187,12 @@ namespace Cutulu.Core
 
         class Encoder() : BinaryEncoder(typeof(Number))
         {
-            public override void Encode(System.IO.BinaryWriter writer, System.Type type, object value)
+            public override void Encode(Core.Encoder.Marshal writer, System.Type type, object value)
             {
                 var number = (Number)value;
 
-                writer.Write((byte)number.Buffer.Length);
-                writer.Write(number.Buffer);
+                writer.Writer.Write((byte)number.Buffer.Length);
+                writer.Writer.Write(number.Buffer);
             }
 
             public override object Decode(Decoder.Marshal marshal, System.Type type)

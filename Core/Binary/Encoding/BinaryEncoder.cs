@@ -24,7 +24,7 @@ public abstract class BinaryEncoder
 
     public virtual int GetPriority() => 0;
 
-    public abstract void Encode(BinaryWriter writer, Type type, object value);
+    public abstract void Encode(Encoder.Marshal writer, Type type, object value);
 
     public abstract object Decode(Decoder.Marshal reader, Type type);
 

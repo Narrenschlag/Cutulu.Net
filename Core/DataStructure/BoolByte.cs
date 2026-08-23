@@ -136,9 +136,9 @@ public struct BoolByte
 
     class Encoder() : BinaryEncoder(typeof(BoolByte))
     {
-        public override void Encode(BinaryWriter writer, Type type, object value)
+        public override void Encode(Core.Encoder.Marshal writer, Type type, object value)
         {
-            writer.Write(((BoolByte)value).RawByte);
+            writer.Writer.Write(((BoolByte)value).RawByte);
         }
 
         public override object Decode(Decoder.Marshal marshal, Type type)

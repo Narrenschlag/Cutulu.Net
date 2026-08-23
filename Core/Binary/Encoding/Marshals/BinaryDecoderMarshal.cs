@@ -10,15 +10,15 @@ public static partial class Decoder
     /// This is an internal runtime marshal to give the decoder a bit of memory for decision making.
     /// It provides a little safety and a few utility methods.
     /// </summary>
-    public ref struct Marshal(BinaryReader reader, bool enable_logging = true)
+    public ref struct Marshal(BinaryReader reader, bool enable_logging = true) : IBinaryMarshal
     {
         public readonly BinaryReader Reader = reader;
-        public readonly bool EnableLogging = enable_logging;
+        public bool EnableLogging { get; set; } = enable_logging;
 
         /// <summary> Is consumed by the decoder. </summary>
-        public bool FirstIterationConsumable = true;
+        public bool FirstIterationConsumable { get; set; } = true;
 
-        public bool IsReady => Reader != null;
+        public bool IsValid => Reader != null;
 
         public long Position
         {

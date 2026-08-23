@@ -97,7 +97,7 @@ class UNumberEncoder() : BinaryEncoder(typeof(UNumber<>))
 {
     private const byte DIV = 252;
 
-    public override void Encode(System.IO.BinaryWriter writer, System.Type type, object value)
+    public override void Encode(Core.Encoder.Marshal writer, System.Type type, object value)
     {
         // Extract the ulong representation regardless of T
         var innerValue = Convert.ToUInt64(value.GetType().GetField("Value")!.GetValue(value));
@@ -105,7 +105,7 @@ class UNumberEncoder() : BinaryEncoder(typeof(UNumber<>))
         // Mirror original logic: small values fit in a single byte
         if (innerValue < DIV)
         {
-            writer.Write((byte)innerValue);
+            writer.Writer.Write((byte)innerValue);
             return;
         }
 
@@ -117,15 +117,15 @@ class UNumberEncoder() : BinaryEncoder(typeof(UNumber<>))
             TypeEnum.Byte;
 
         // Write type prefix byte
-        writer.Write((byte)(typeEnum + DIV - 1));
+        writer.Writer.Write((byte)(typeEnum + DIV - 1));
 
         // Write the value in the minimum required bytes
         switch (typeEnum)
         {
-            case TypeEnum.Byte: writer.Write((byte)innerValue); break;
-            case TypeEnum.UShort: writer.Write((ushort)innerValue); break;
-            case TypeEnum.UInt: writer.Write((uint)innerValue); break;
-            case TypeEnum.ULong: writer.Write(innerValue); break;
+            case TypeEnum.Byte: writer.Writer.Write((byte)innerValue); break;
+            case TypeEnum.UShort: writer.Writer.Write((ushort)innerValue); break;
+            case TypeEnum.UInt: writer.Writer.Write((uint)innerValue); break;
+            case TypeEnum.ULong: writer.Writer.Write(innerValue); break;
         }
     }
 

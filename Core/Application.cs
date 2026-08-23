@@ -7,10 +7,18 @@ using Godot;
 public static class Application
 {
 #if GODOT4_0_OR_GREATER
+    // Set this once, early, from a point you know is main thread (e.g. autoload _Ready or _EnterTree)
+    public static int MainThreadId { get; private set; } = System.Environment.CurrentManagedThreadId;
+
     /// <summary>
     /// Returns true if current thread is main thread
     /// </summary>
-    public static bool IsOnMainThread() => (int)OS.GetMainThreadId() == System.Environment.CurrentManagedThreadId;
+    public static bool IsOnMainThread() => MainThreadId == System.Environment.CurrentManagedThreadId;
+
+    /// <summary>
+    /// Update the main thread id to the current thread id
+    /// </summary>
+    public static void UpdateMainThreadId() => MainThreadId = System.Environment.CurrentManagedThreadId;
 
     /// <summary>
     /// Close the application

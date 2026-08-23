@@ -33,16 +33,16 @@ public struct StandaloneBuffer
     {
         public Encoder() : base(typeof(StandaloneBuffer)) { }
 
-        public override void Encode(BinaryWriter writer, Type type, object value)
+        public override void Encode(Core.Encoder.Marshal writer, Type type, object value)
         {
             if (value is not StandaloneBuffer buffer || buffer.Type == null || buffer.Value == null)
             {
-                writer.Write(false);
+                writer.Writer.Write(false);
                 return;
             }
 
-            writer.Write(true);
-            writer.Write(buffer.Type.FullName);
+            writer.Writer.Write(true);
+            writer.Writer.Write(buffer.Type.FullName);
             writer.Encode(buffer.Value);
         }
 

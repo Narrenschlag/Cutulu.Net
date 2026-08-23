@@ -17,7 +17,7 @@ namespace Cutulu.Core
     {
         class DateTimeEncoder() : BinaryEncoder(typeof(System.DateTime))
         {
-            public override void Encode(System.IO.BinaryWriter writer, System.Type type, object value)
+            public override void Encode(Encoder.Marshal writer, System.Type type, object value)
             {
                 var dateTime = (System.DateTime)value;
 
@@ -48,7 +48,7 @@ namespace Cutulu.Core
         {
             private static readonly ConcurrentDictionary<Type, (Type KeyType, Type ValueType, Func<object, object> GetKey, Func<object, object> GetValue)> Cache = new();
 
-            public override void Encode(BinaryWriter writer, Type type, object value)
+            public override void Encode(Encoder.Marshal writer, Type type, object value)
             {
                 var meta = Cache.GetOrAdd(type, CreateMetadata);
 
@@ -94,7 +94,7 @@ namespace Cutulu.Core
         {
             private static readonly ConcurrentDictionary<Type, Type> ItemTypeCache = [];
 
-            public override void Encode(BinaryWriter writer, Type type, object value)
+            public override void Encode(Encoder.Marshal writer, Type type, object value)
             {
                 var itemType = ItemTypeCache.GetOrAdd(type, t =>
                 {
@@ -138,7 +138,7 @@ namespace Cutulu.Core
 
         class TupleEncoder() : BinaryEncoder(typeof(ITuple))
         {
-            public override void Encode(BinaryWriter writer, Type type, object value)
+            public override void Encode(Encoder.Marshal writer, Type type, object value)
             {
                 if (value == null)
                     throw new ArgumentNullException(nameof(value), "Tuple value is null.");

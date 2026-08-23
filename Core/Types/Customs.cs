@@ -30,13 +30,13 @@ namespace Cutulu.Core
 
         class Encoder() : BinaryEncoder(typeof(ColorRGB))
         {
-            public override void Encode(BinaryWriter writer, System.Type type, object value)
+            public override void Encode(Core.Encoder.Marshal writer, System.Type type, object value)
             {
                 var obj = (ColorRGB)value;
 
-                writer.Write(obj.R);
-                writer.Write(obj.G);
-                writer.Write(obj.B);
+                writer.Writer.Write(obj.R);
+                writer.Writer.Write(obj.G);
+                writer.Writer.Write(obj.B);
             }
 
             public override object Decode(Decoder.Marshal marshal, System.Type type) => new ColorRGB(marshal.Reader.ReadByte(), marshal.Reader.ReadByte(), marshal.Reader.ReadByte());
@@ -60,12 +60,12 @@ namespace Cutulu.Core
 
         class Encoder() : BinaryEncoder(typeof(Vector2S))
         {
-            public override void Encode(BinaryWriter writer, System.Type type, object value)
+            public override void Encode(Core.Encoder.Marshal writer, System.Type type, object value)
             {
                 var obj = (Vector2S)value;
 
-                writer.Write(obj.X);
-                writer.Write(obj.Y);
+                writer.Writer.Write(obj.X);
+                writer.Writer.Write(obj.Y);
             }
 
             public override object Decode(Decoder.Marshal marshal, System.Type type) => new Vector2S(marshal.Reader.ReadInt16(), marshal.Reader.ReadInt16());
@@ -81,7 +81,7 @@ namespace Cutulu.Core
 
         public class Encoder() : BinaryEncoder(typeof(Vector38))
         {
-            public override void Encode(BinaryWriter writer, System.Type type, object value) => writer.Write(((Vector38)value).Values);
+            public override void Encode(Core.Encoder.Marshal writer, System.Type type, object value) => writer.Writer.Write(((Vector38)value).Values);
 
             public override object Decode(Decoder.Marshal marshal, System.Type type) => new Vector38(marshal.Reader.ReadByte(), marshal.Reader.ReadByte(), marshal.Reader.ReadByte());
         }

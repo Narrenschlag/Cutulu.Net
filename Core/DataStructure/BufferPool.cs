@@ -169,18 +169,18 @@ public class BufferPool : IDisposable
     /// </summary>
     class Encoder() : BinaryEncoder(typeof(BufferPool))
     {
-        public override void Encode(BinaryWriter writer, Type type, object value)
+        public override void Encode(Core.Encoder.Marshal writer, Type type, object value)
         {
             if (value is BufferPool pool)
             {
-                writer.Write(pool.GetLength());
-                writer.Write(pool.GetBuffer());
+                writer.Writer.Write(pool.GetLength());
+                writer.Writer.Write(pool.GetBuffer());
 
-                writer.Write(pool.OrderedStartIndexArray.Count);
+                writer.Writer.Write(pool.OrderedStartIndexArray.Count);
                 var span = pool.OrderedStartIndexArray.AsSpan();
                 for (int i = 0; i < span.Length; i++)
                 {
-                    writer.Write(span[i]);
+                    writer.Writer.Write(span[i]);
                 }
             }
         }

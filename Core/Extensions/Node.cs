@@ -98,7 +98,7 @@ public static partial class Nodef
         SetChild(parent, node);
     }
 
-    public static void SetChild(this Node newParent, Node node)
+    public static void SetChild(this Node newParent, Node node, bool deferIfNeeded = true)
     {
         if (node.IsNull() || newParent.IsNull() || node == newParent) return;
 
@@ -112,7 +112,7 @@ public static partial class Nodef
         if (oldParent != null)
         {
             // Remove from old parent
-            if (onMainThread) oldParent.RemoveChild(node);
+            if (onMainThread || deferIfNeeded == false) oldParent.RemoveChild(node);
             else oldParent.CallDeferred("remove_child", node);
 
             // Force immediate processing to fully detach
@@ -120,7 +120,7 @@ public static partial class Nodef
         }
 
         // Add to new parent
-        if (onMainThread) newParent.AddChild(node);
+        if (onMainThread || deferIfNeeded == false) newParent.AddChild(node);
         else newParent.CallDeferred("add_child", node);
 
         // Restore transform if Node3D

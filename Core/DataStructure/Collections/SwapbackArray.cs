@@ -316,7 +316,7 @@ class SwapbackArrayEncoder() : BinaryEncoder(typeof(SwapbackArray<>))
 {
     private static readonly ConcurrentDictionary<Type, Type> ItemTypeCache = [];
 
-    public override void Encode(BinaryWriter writer, Type type, object value)
+    public override void Encode(Core.Encoder.Marshal writer, Type type, object value)
     {
         var itemType = ItemTypeCache.GetOrAdd(type, t =>
         {

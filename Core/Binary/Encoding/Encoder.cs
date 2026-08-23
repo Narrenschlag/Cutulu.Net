@@ -7,7 +7,7 @@ using System;
 /// <summary>
 /// Static class for encoding and decoding binary data
 /// </summary>
-public static class Encoder
+public static partial class Encoder
 {
     /// <summary>
     /// Writes encoded buffer of an object to given BinaryWriter
@@ -15,11 +15,7 @@ public static class Encoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Encode(this BinaryWriter _writer, object _obj, Type _type)
     {
-        // Write empty array
-        if (_obj.IsNull() && _type.IsArray) _writer.Write(new UNumber8());
-
-        // Write object
-        else Encode(_writer, _obj, true);
+        new Marshal(_writer).Encode(_obj);
     }
 
     /// <summary>
@@ -112,14 +108,18 @@ public static class Encoder
         return TryEncode(_obj, typeof(T), out _buffer, _enable_logging);
     }
 
-    private static bool Encode(BinaryWriter writer, object obj, bool _first_iteration)
+    private static bool Encode(Marshal marshal, object obj)
     {
         if (obj.IsNull()) return false;
+
+        var firstIteration = marshal.FirstIterationConsumable;
+        marshal.FirstIterationConsumable = false;
+        var writer = marshal.Writer;
 
         switch (obj)
         {
             case byte[] v:
-                if (_first_iteration == false) Encode(writer, (UNumber64)v.Length, false);
+                if (firstIteration == false) Encode(marshal, (UNumber64)v.Length);
                 writer.Write(v); break;
 
             case string v: writer.Write(v); break;
@@ -145,17 +145,17 @@ public static class Encoder
                 var type = obj.GetType();
 
                 // Encode using custom encoder
-                if (BinaryEncoding.TryGetEncoder(type, out var encoder)) encoder.Encode(writer, type, obj);
+                if (BinaryEncoding.TryGetEncoder(type, out var encoder)) encoder.Encode(marshal, type, obj);
 
                 // Encode types without serializer
-                else if (EncodeUnknown(writer, ref obj) == false) return false;
+                else if (EncodeUnknown(marshal, ref obj) == false) return false;
 
                 break;
         }
 
         return true;
 
-        static bool EncodeUnknown(BinaryWriter _writer, ref object _obj)
+        static bool EncodeUnknown(Marshal marshal, ref object _obj)
         {
             //if (_obj == null) return false; -> _obj is already null-checked
             var _type = _obj.GetType();
@@ -163,13 +163,13 @@ public static class Encoder
             // Encode enum
             if (_type.IsEnum)
             {
-                Encode(_writer, Convert.ChangeType(_obj, _type.GetEnumUnderlyingType()), false);
+                Encode(marshal, Convert.ChangeType(_obj, _type.GetEnumUnderlyingType()));
             }
 
             // Arrays
             else if (_type.IsArray && _obj is Array array)
             {
-                Encode(_writer, (UNumber64)array.Length, false);
+                Encode(marshal, (UNumber64)array.Length);
                 _type = _type.GetElementType();
                 object _value;
 
@@ -178,30 +178,30 @@ public static class Encoder
                     _value = array.GetValue(i);
 
                     // Write null array as empty array
-                    if (_value == null && _type.IsArray) _writer.Write(new UNumber64());
+                    if (_value == null && _type.IsArray) marshal.Writer.Write(new UNumber64());
 
                     // Write array value
-                    else Encode(_writer, _value, false);
+                    else Encode(marshal, _value);
                 }
             }
 
             // Classes and structs
-            else AutoEncode(_writer, _type, _obj);
+            else AutoEncode(marshal, _type, _obj);
 
             return true;
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void AutoEncode<T>(this BinaryWriter _writer, T _obj) => AutoEncode(_writer, typeof(T), _obj);
+    private static void AutoEncode<T>(Marshal marshal, T _obj) => AutoEncode(marshal, typeof(T), _obj);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void AutoEncode(this BinaryWriter _writer, Type _type, object _obj)
+    private static void AutoEncode(Marshal marshal, Type _type, object _obj)
     {
         if (_obj.IsNull())
         {
             if (_type != null && _type.IsArray)
-                _writer.Write(new UNumber8());
+                marshal.Writer.Write(new UNumber8());
 
             return;
         }
@@ -217,8 +217,8 @@ public static class Encoder
                 _value = info.GetValue(_obj);
 
                 // Write value
-                if (_value == null) _writer.Write(default(byte)); // Write null string/array as empty string/array
-                else Encode(_writer, _value, false); // Encode value as usual
+                if (_value == null) marshal.Writer.Write(default(byte)); // Write null string/array as empty string/array
+                else Encode(marshal, _value); // Encode value as usual
             }
 
             catch (Exception ex)
