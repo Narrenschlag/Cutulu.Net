@@ -64,6 +64,8 @@ namespace Cutulu.Network
 
         public int GetConnectionCount() => Connections.ConnectionCount;
 
+        public bool TryGetConnection(long userId, out Connection connection) => Connections.TryGetConnection(userId, out connection);
+
         #region Validators
 
         public bool TryGetHandler(byte key, out ConnectionHandler validator) => ConnectionHandlers.TryGetValue(key, out validator);
