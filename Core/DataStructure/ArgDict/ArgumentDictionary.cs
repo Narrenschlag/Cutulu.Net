@@ -4,7 +4,7 @@ namespace Cutulu.Core
 
     public static class ArgumentDictionary
     {
-        public static Dictionary<string, string> GetDictionary(this string[] _args, char _seperator = ':', bool includeEmpty = true)
+        public static Dictionary<string, string> GetDictionary(this string[] _args, char _seperator = ':', bool includeEmpty = true, bool lowercaseValues = false)
         {
             var _dictionary = new Dictionary<string, string>();
 
@@ -16,7 +16,7 @@ namespace Cutulu.Core
 
                     if (_split.Size() >= 2)
                     {
-                        _dictionary[_split[0].ToLower()] = _split[1].ToLower();
+                        _dictionary[_split[0].ToLower()] = lowercaseValues ? _split[1].ToLower() : _split[1];
                     }
 
                     else if (includeEmpty)
