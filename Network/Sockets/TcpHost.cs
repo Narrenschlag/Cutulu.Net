@@ -71,6 +71,9 @@ namespace Cutulu.Network.Sockets
             // Establish tcp listener
             Listener.Start();
 
+            if (IsListening)
+                Started?.Invoke(this);
+
             AcceptClients();
         }
 

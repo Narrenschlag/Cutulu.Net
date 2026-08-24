@@ -158,12 +158,12 @@ namespace Cutulu.Network
 
         protected virtual void StartEvent(TcpHost host)
         {
-            lock (this) Started?.Invoke();
+            Started?.Invoke();
         }
 
         protected virtual void StoppedEvent(TcpHost host)
         {
-            lock (this) Stopped?.Invoke();
+            Stopped?.Invoke();
         }
 
         private async void HandleNewClient(TcpSocket socket)
