@@ -1,14 +1,22 @@
 namespace Cutulu.Core;
 
+using System.Runtime.CompilerServices;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Diagnostics;
 using System.Reflection;
 using System.Linq;
 using System;
 
+/// <summary>
+/// A class that manages a set of parameters for a given type. 3rd gen. Last updated by Maximilian Schecklmann, 2026-08-26.
+/// </summary>
 public partial class ParameterManager
 {
-    private static readonly Dictionary<CacheKey, ParameterManager> Cache = [];
+    private static readonly bool DynamicCodeSupported = RuntimeFeature.IsDynamicCodeSupported;
+
+    private static readonly ConcurrentDictionary<CacheKey, ParameterManager> Cache = [];
     public static void ClearCache() => Cache.Clear();
 
     public readonly ushort PropertyCount;
@@ -268,18 +276,98 @@ public partial class ParameterManager
         return [.. list];
     }
 
-    private readonly struct CacheKey : IEquatable<CacheKey>
+    public static Func<object, object> BuildGetter(MemberInfo member, Type declaringType)
     {
-        public readonly Type Type;
-        public readonly Type BaseType;
-        public readonly int FilterHash;
-
-        public CacheKey(Type type, Type baseType, int filterHash)
+        if (DynamicCodeSupported)
         {
-            Type = type;
-            BaseType = baseType;
-            FilterHash = filterHash;
+            try
+            {
+                return BuildGetterExpression(member, declaringType);
+            }
+            catch (Exception)
+            {
+                // Fall through to reflection fallback below.
+                // (Some AOT configs report IsDynamicCodeSupported=true but still fail on first use.)
+            }
         }
+
+        return BuildGetterReflection(member);
+    }
+
+    private static Func<object, object> BuildGetterExpression(MemberInfo member, Type declaringType)
+    {
+        var instanceParam = Expression.Parameter(typeof(object), "instance");
+        var instanceCast = Expression.Convert(instanceParam, declaringType);
+
+        Expression access = member is PropertyInfo p
+            ? Expression.Property(instanceCast, p)
+            : Expression.Field(instanceCast, (FieldInfo)member);
+
+        var boxed = Expression.Convert(access, typeof(object));
+        return Expression.Lambda<Func<object, object>>(boxed, instanceParam).Compile();
+    }
+
+    private static Func<object, object> BuildGetterReflection(MemberInfo member)
+    {
+        // Plain reflection — slower, but works everywhere (full AOT, IL2CPP, trimmed builds).
+        return member is PropertyInfo p
+            ? (obj => p.GetValue(obj))
+            : (obj => ((FieldInfo)member).GetValue(obj));
+    }
+
+    public static Action<object, object> BuildSetter(MemberInfo member, Type declaringType, Type memberType)
+    {
+        if (DynamicCodeSupported)
+        {
+            try
+            {
+                return BuildSetterExpression(member, declaringType, memberType);
+            }
+            catch (Exception)
+            {
+                // Fall through to reflection fallback below.
+            }
+        }
+
+        return BuildSetterReflection(member);
+    }
+
+    private static Action<object, object> BuildSetterExpression(MemberInfo member, Type declaringType, Type memberType)
+    {
+        var instanceParam = Expression.Parameter(typeof(object), "instance");
+        var valueParam = Expression.Parameter(typeof(object), "value");
+
+        // This is important because we may work with structs or other value type.
+        // Value types need Unbox to get a writable pointer into the box.
+        // Expression.Convert on a value type does unbox.any, which copies
+        // the value out, assignments through it are silently lost.
+        Expression instanceCast = declaringType.IsValueType
+            ? Expression.Unbox(instanceParam, declaringType)
+            : Expression.Convert(instanceParam, declaringType);
+
+        var valueCast = Expression.Convert(valueParam, memberType);
+
+        Expression access = member is PropertyInfo p
+            ? Expression.Property(instanceCast, p)
+            : Expression.Field(instanceCast, (FieldInfo)member);
+
+        var assign = Expression.Assign(access, valueCast);
+
+        return Expression.Lambda<Action<object, object>>(assign, instanceParam, valueParam).Compile();
+    }
+
+    private static Action<object, object> BuildSetterReflection(MemberInfo member)
+    {
+        return member is PropertyInfo p
+            ? (obj, val) => p.SetValue(obj, val)
+            : (obj, val) => ((FieldInfo)member).SetValue(obj, val);
+    }
+
+    private readonly struct CacheKey(Type type, Type baseType, int filterHash) : IEquatable<CacheKey>
+    {
+        public readonly Type Type = type;
+        public readonly Type BaseType = baseType;
+        public readonly int FilterHash = filterHash;
 
         public bool Equals(CacheKey other) =>
             Type == other.Type &&
@@ -287,48 +375,64 @@ public partial class ParameterManager
             FilterHash == other.FilterHash;
 
         public override int GetHashCode() => HashCode.Combine(Type, BaseType, FilterHash);
+
+        public override bool Equals(object obj) => obj is CacheKey key && Equals(key);
     }
 }
 
 public readonly struct ParameterInfo
 {
-    private readonly PropertyInfo Property;
-    private readonly FieldInfo Field;
-    private readonly bool IsProperty;
+    private readonly string _name;
+    private readonly Type _type;
 
-    public string Name => IsProperty ? Property.Name : Field.Name;
-    public Type Type => IsProperty ? Property.PropertyType : Field.FieldType;
+    private readonly Func<object, object> _getter;
+    private readonly Action<object, object> _setter;
+
+    private readonly System.Reflection.ParameterInfo[] _index;
+
+    public string Name => _name;
+    public Type Type => _type;
 
     public ParameterInfo(PropertyInfo property)
     {
-        Property = property;
-        IsProperty = true;
-        Field = null;
+        _name = property.Name;
+        _type = property.PropertyType;
+        _index = property.GetIndexParameters();
+
+        _getter = property.CanRead
+            ? ParameterManager.BuildGetter(property, property.DeclaringType)
+            : null;
+
+        _setter = property.CanWrite
+            ? ParameterManager.BuildSetter(property, property.DeclaringType, property.PropertyType)
+            : null;
     }
 
     public ParameterInfo(FieldInfo field)
     {
-        Property = null;
-        IsProperty = false;
-        Field = field;
+        _name = field.Name;
+        _type = field.FieldType;
+        _index = null;
+
+        _getter = ParameterManager.BuildGetter(field, field.DeclaringType);
+        _setter = field.IsInitOnly ? null : ParameterManager.BuildSetter(field, field.DeclaringType, field.FieldType);
     }
 
-    public readonly string GetName() => IsProperty ? Property.Name : Field.Name;
-
-    public readonly Type GetValueType() => IsProperty ? Property.PropertyType : Field.FieldType;
+    public readonly string GetName() => _name;
+    public readonly Type GetValueType() => _type;
 
     [Obsolete("Use GetValueType() instead")]
     public readonly new Type GetType() => base.GetType();
 
-    public readonly object GetValue(object _ref) => IsProperty ? Property.GetValue(_ref) : Field.GetValue(_ref);
+    public readonly object GetValue(object _ref) =>
+    _getter is not null ? _getter(_ref) : throw new InvalidOperationException($"'{_name}' has no getter.");
 
     public readonly void SetValue(object _ref, object _value)
     {
-        if (IsProperty) Property.SetValue(_ref, _value);
-        else Field.SetValue(_ref, _value);
+        if (_setter is null) throw new InvalidOperationException($"'{_name}' has no setter.");
+        _setter(_ref, _value);
     }
 
-    public readonly System.Reflection.ParameterInfo[] GetIndexParameters() => IsProperty ? Property.GetIndexParameters() : null;
-
-    public readonly bool HasIndexParameters() => IsProperty && Property.GetIndexParameters().NotEmpty();
+    public readonly System.Reflection.ParameterInfo[] GetIndexParameters() => _index;
+    public readonly bool HasIndexParameters() => _index.NotEmpty();
 }
