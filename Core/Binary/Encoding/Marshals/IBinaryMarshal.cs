@@ -1,15 +1,18 @@
 namespace Cutulu.Core;
 
-using System.Runtime.CompilerServices;
-using System.IO;
-using System;
-
 public interface IBinaryMarshal
 {
-    public bool FirstIterationConsumable { get; set; }
-    bool EnableLogging { get; set; }
-    bool IsValid { get; }
+    DebugLogEnum DebugLog { get; set; }
 
     long Position { get; set; }
     long Length { get; }
+
+    [System.Flags]
+    public enum DebugLogEnum : byte
+    {
+        None = 0,
+        Errors = 1 << 0,
+        Warnings = 1 << 1,
+        Infos = 1 << 2,
+    }
 }

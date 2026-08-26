@@ -22,7 +22,7 @@ namespace Cutulu.Network
         private byte ThreadIdx;
         public string Address;
 
-        public long UserID { get; private set; }
+        public long UserId { get; private set; }
 
         public bool IsConnected => TcpClient != null && TcpClient.IsConnected && Validation == VALIDATION.COMPLETE;
         public VALIDATION Validation { get; private set; } = VALIDATION.INVALID;
@@ -217,7 +217,7 @@ namespace Cutulu.Network
                 return;
             }
 
-            UserID = Buffer.Decode<long>();
+            UserId = Buffer.Decode<long>();
             Validation = VALIDATION.COMPLETE;
 
             lock (this) Connected?.Invoke();

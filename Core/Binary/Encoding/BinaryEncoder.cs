@@ -40,7 +40,7 @@ public abstract class BinaryEncoder
             foreach (var (name, value) in entries)
             {
                 start = encoder.Position;
-                encoder.Write(value);
+                encoder.Encode(value);
                 meta.Add(new(name, encoder.Position - start));
             }
 

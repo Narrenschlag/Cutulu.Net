@@ -15,7 +15,7 @@ public static partial class Decoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object Decode(this BinaryReader _reader, Type _type)
     {
-        return Decode(new Marshal(_reader), _type);
+        return new Marshal(_reader).Decode(_type);
     }
 
     /// <summary>
@@ -164,107 +164,5 @@ public static partial class Decoder
 
         _value = _decoded ? (T)_obj : default;
         return _decoded;
-    }
-
-    private static object Decode(Decoder.Marshal marshal, Type type)
-    {
-        BinaryEncoding.LastPropertyType = type;
-
-        var firstIteration = marshal.FirstIterationConsumable;
-        marshal.FirstIterationConsumable = false;
-        var reader = marshal.Reader;
-
-        return type switch
-        {
-            var t when t == typeof(byte[]) => firstIteration ? reader.ReadRemainingBytes() : reader.ReadBytes(Decode<UNumber64>(reader)),
-            var t when t == typeof(string) => reader.ReadString(),
-            var t when t == typeof(bool) => reader.ReadBoolean(),
-            var t when t == typeof(char) => reader.ReadChar(),
-
-            var t when t == typeof(long) => reader.ReadInt64(),
-            var t when t == typeof(ulong) => reader.ReadUInt64(),
-            var t when t == typeof(int) => reader.ReadInt32(),
-            var t when t == typeof(uint) => reader.ReadUInt32(),
-            var t when t == typeof(short) => reader.ReadInt16(),
-            var t when t == typeof(ushort) => reader.ReadUInt16(),
-            var t when t == typeof(byte) => reader.ReadByte(),
-            var t when t == typeof(sbyte) => reader.ReadSByte(),
-
-            var t when t == typeof(double) => reader.ReadDouble(),
-            var t when t == typeof(float) => reader.ReadSingle(),
-
-            _ => BinaryEncoding.TryGetEncoder(type, out var decoder) ?
-                decoder.Decode(marshal, type) :
-                DecodeUnknown(marshal, type)
-        };
-
-        static object DecodeUnknown(Decoder.Marshal _marshal, Type _type)
-        {
-            var _reader = _marshal.Reader;
-
-            // Enums
-            if (_type.IsEnum)
-            {
-                return Enum.ToObject(_type, _marshal.Decode(_type.GetEnumUnderlyingType()));
-            }
-
-            // Arrays
-            if (_type.IsArray)
-            {
-                _type = _type.GetElementType();
-
-                // Unable to read beyond end of stream (UNumber is always atleast 1 byte)
-                if (_reader.RemainingByteLength() < 1)
-                {
-                    throw new EndOfStreamException($"Unable to read array. Reached end of stream. {_reader.RemainingByteLength()}");
-                }
-
-                var _array = Array.CreateInstance(_type, _marshal.Decode<UNumber64>());
-
-                for (ushort i = 0; i < _array.Length; i++)
-                {
-                    _array.SetValue(_marshal.Decode(_type), i);
-                }
-
-                return _array;
-            }
-
-            // Classes and structs
-            else return AutoDecode(_marshal, _type);
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static T AutoDecode<T>(this Marshal _marshal) => AutoDecode(_marshal, typeof(T)) is T _t ? _t : default;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static object AutoDecode(this Marshal _marshal, Type _type)
-    {
-        try
-        {
-            var _output = Activator.CreateInstance(_type);
-
-            var _manager = ParameterManager.Open(_type, null, BinaryEncoding.IncludeAttributes, BinaryEncoding.ExcludeAttributes);
-
-            var infos = _manager.GetInfos();
-            foreach (ref var info in infos)
-            {
-                BinaryEncoding.LastPropertyName = info.GetName();
-
-                info.SetValue(_output, _marshal.Decode(info.GetValueType()));
-            }
-
-            return _output;
-        }
-
-        catch (System.Reflection.TargetInvocationException ex)
-        {
-            throw new System.Reflection.TargetInvocationException(
-                $"Cannot call Activator.CreateInstance. Check if there are problems with references in constructors.",
-                ex.InnerException
-            );
-        }
-
-        catch { throw; }
     }
 }

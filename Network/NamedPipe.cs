@@ -75,8 +75,8 @@ public static class NamedPipe
         public void Send(UNumber32 key, object obj)
         {
             var encoder = new LocalEncoder();
-            encoder.Write(key);
-            encoder.Write(obj);
+            encoder.Encode(key);
+            encoder.Encode(obj);
 
             byte[] buffer = encoder.GetBuffer();
             Writer.Write(buffer.Length);

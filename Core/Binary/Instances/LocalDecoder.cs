@@ -6,24 +6,34 @@ using System;
 
 public sealed class LocalDecoder : IDisposable
 {
+    #region Params & Constructors
+
+    public Func<Decoder.Marshal, object> GenericNestedObjectDecoder;
+    public IBinaryMarshal.DebugLogEnum DebugLog;
+
     private readonly MemoryStream _memory;
     private readonly BinaryReader _reader;
 
-    public long Length => _memory.Length;
     public long RemainingLength => _memory.Length - _memory.Position;
+    public long Length => _memory.Length;
+    public long Position
+    {
+        get => _memory.Position;
+        set => _memory.Position = value;
+    }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public long GetPosition() => _memory.Position;
+    private Decoder.Marshal Marshal => new(_reader, GenericNestedObjectDecoder, DebugLog);
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetPosition(long position) => _memory.Position = position;
+    public LocalDecoder(IBinaryMarshal.DebugLogEnum debugLog = IBinaryMarshal.DebugLogEnum.None)
+    {
+        _reader = new(_memory = new());
+        DebugLog = debugLog;
+    }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public byte[] GetBuffer() => _memory.ToArray();
-
-    public LocalDecoder() { _reader = new(_memory = new()); }
-
-    //public LocalDecoder(byte[] buffer) => _reader = new(_memory = new(buffer)); 
+    public LocalDecoder(Func<Decoder.Marshal, object> genericNestedObjectDecoder, IBinaryMarshal.DebugLogEnum debugLog = IBinaryMarshal.DebugLogEnum.None) : this(debugLog)
+    {
+        GenericNestedObjectDecoder = genericNestedObjectDecoder;
+    }
 
     public LocalDecoder(byte[] buffer)
     {
@@ -39,6 +49,45 @@ public sealed class LocalDecoder : IDisposable
         _memory.Position = 0;
         _reader = new BinaryReader(_memory);
     }
+
+    #endregion
+
+    #region Decoding
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public T Decode<T>()
+    {
+        return Marshal.Decode<T>();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public object Decode(Type type)
+    {
+        return Marshal.Decode(type);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryDecode<T>(out T value)
+    {
+        long position = _memory.Position;
+
+        if (Marshal.TryDecode(out value)) return true;
+
+        // Reset reader if failed to decode
+        _memory.Position = position;
+
+        value = default;
+        return false;
+    }
+
+    #endregion
+
+    #region Utility & Else
+
+    public byte[] ReadBytes(int count) => _reader.ReadBytes(count);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public byte[] GetBuffer() => _memory.ToArray();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Append(byte[] buffer) => Append(buffer.AsSpan());
@@ -74,33 +123,15 @@ public sealed class LocalDecoder : IDisposable
         Append(buffer);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryDecode<T>(out T value, bool enable_logging = true)
+    public void Dispose()
     {
-        long position = _memory.Position;
-
-        if (_reader.TryDecode(out value, enable_logging)) return true;
-
-        // Reset reader if failed to decoder
-        _memory.Position = position;
-
-        value = default;
-        return false;
+        _reader?.Dispose();
+        _memory?.Dispose();
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public T Decode<T>()
-    {
-        return _reader.Decode<T>();
-    }
+    #endregion
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public object Decode(Type type)
-    {
-        return _reader.Decode(type);
-    }
-
-    public byte[] ReadBytes(int count) => _reader.ReadBytes(count);
+    #region Static
 
 #if WEB_APP
     public static async Task<LocalDecoder> Create(HttpContext http, bool _enable_logging = true)
@@ -127,9 +158,5 @@ public sealed class LocalDecoder : IDisposable
     }
 #endif
 
-    public void Dispose()
-    {
-        _reader?.Dispose();
-        _memory?.Dispose();
-    }
+    #endregion
 }

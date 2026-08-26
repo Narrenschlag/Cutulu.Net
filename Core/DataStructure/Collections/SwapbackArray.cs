@@ -14,6 +14,7 @@ using System;
 public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollection, IEnumerable, IReadOnlyCollection<T>
 {
     private T[] _data;
+
     private int _count;
 
     public int Count => _count;
@@ -126,8 +127,18 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void RemoveAt(int index)
     {
-        if ((uint)index >= (uint)_count)
-            throw new ArgumentOutOfRangeException(nameof(index));
+        if ((uint)index >= (uint)_count) throw new ArgumentOutOfRangeException(nameof(index));
+
+        _count--;
+        if (index < _count)
+            _data[index] = _data[_count];
+        _data[_count] = default!;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void RemoveAt(uint index)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, (uint)_count);
 
         _count--;
         if (index < _count)
