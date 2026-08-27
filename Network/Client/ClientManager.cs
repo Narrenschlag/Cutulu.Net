@@ -27,6 +27,7 @@ namespace Cutulu.Network
         public bool IsConnected => TcpClient != null && TcpClient.IsConnected && Validation == VALIDATION.COMPLETE;
         public VALIDATION Validation { get; private set; } = VALIDATION.INVALID;
 
+        public Action<bool, short, byte[]> ReceivedByProtocol;
         public Action<short, byte[]> Received;
         public Action Connected, Disconnected;
 
@@ -166,7 +167,7 @@ namespace Cutulu.Network
         /// <summary>
         /// Receive event, called by client.
         /// </summary>
-        protected virtual void ReceiveBuffer(byte[] _packet_buffer)
+        protected virtual void ReceiveBuffer(bool reliable, byte[] _packet_buffer)
         {
             if (PacketProtocol.Unpack(_packet_buffer, out var _key, out var _buffer))
             {
@@ -185,6 +186,7 @@ namespace Cutulu.Network
                 }
 
                 // No one consumed the packet, let the events read it
+                ReceivedByProtocol?.Invoke(reliable, _key, _buffer);
                 Received?.Invoke(_key, _buffer);
             }
         }
@@ -245,7 +247,7 @@ namespace Cutulu.Network
 
                 if (packet.Success)
                 {
-                    lock (this) ReceiveBuffer(packet.Buffer);
+                    lock (this) ReceiveBuffer(false, packet.Buffer);
                 }
 
                 udp();
@@ -268,7 +270,7 @@ namespace Cutulu.Network
                     // Heartbeat 
                     if (length == 1 && packet.Buffer[0] == 0xFF) continue;
 
-                    lock (this) ReceiveBuffer(packet.Buffer);
+                    lock (this) ReceiveBuffer(true, packet.Buffer);
                 }
             }
 

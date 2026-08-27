@@ -29,6 +29,7 @@ namespace Cutulu.Network
 
         public bool IsListening => TcpHost?.IsListening ?? false;
 
+        public Action<bool, Connection, short, byte[]> ReceivedByProtocol;
         public Action<Connection, short, byte[]> Received;
         public Action Started, Stopped;
 
@@ -206,7 +207,7 @@ namespace Cutulu.Network
         private void UdpReceiveEvent(IPEndPoint ip, byte[] buffer)
         {
             if (Connections.TryGetConnection(ip, out var connection, false))
-                connection.ReceiveBuffer(buffer);
+                connection.ReceiveBuffer(false, buffer);
         }
 
         #endregion

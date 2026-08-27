@@ -94,10 +94,23 @@ public static partial class Decoder
                 var t when t == typeof(double) => Reader.ReadDouble(),
                 var t when t == typeof(float) => Reader.ReadSingle(),
 
-                _ => BinaryEncoding.TryGetEncoder(type, out var decoder) ?
-                    decoder.Decode(this, type) :
-                    DecodeUnknown(type)
+                _ => DefaultCase(this, type)
             };
+
+            static object DefaultCase(Marshal marshal, Type type)
+            {
+                try
+                {
+                    return BinaryEncoding.TryGetEncoder(type, out var decoder) ?
+                        decoder.Decode(marshal, type) :
+                        marshal.DecodeUnknown(type);
+                }
+
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed to decode type custom/unknown {type.Name}", ex);
+                }
+            }
         }
 
         #endregion

@@ -83,7 +83,7 @@ public class ConnectHandler(byte key) : ConnectionHandler(key)
             // Is Heartbeat
             if (length == 1 && packet.Buffer[0] == 0xFF) continue;
 
-            connection.ReceiveBuffer(packet.Buffer);
+            connection.ReceiveBuffer(true, packet.Buffer);
         }
 
         bool active() => connection != null && connection.Socket != null && connection.Socket.IsConnected;

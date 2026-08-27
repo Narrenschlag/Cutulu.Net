@@ -23,6 +23,7 @@ namespace Cutulu.Network
         public bool IsConnected => Socket != null && Socket.IsConnected;
         long ITagable.GetUniqueTagID() => UserId;
 
+        public event Action<bool, short, byte[]> ReceivedByProtocol;
         public event Action<short, byte[]> Received;
 
         /// <summary>
@@ -75,7 +76,7 @@ namespace Cutulu.Network
         /// <summary>
         /// Receive event, called by client.
         /// </summary>
-        public virtual void ReceiveBuffer(byte[] buffer)
+        public virtual void ReceiveBuffer(bool reliable, byte[] buffer)
         {
             if (PacketProtocol.Unpack(buffer, out var key, out var unpackedBuffer))
             {
@@ -98,11 +99,13 @@ namespace Cutulu.Network
                         if ((bool)(_listener?._Receive(key, decoder))) return;
                     }
 
+                    ReceivedByProtocol?.Invoke(reliable, key, unpackedBuffer);
                     Received?.Invoke(key, unpackedBuffer);
                 }
 
                 lock (Host._trafficLock)
                 {
+                    Host.ReceivedByProtocol?.Invoke(reliable, this, key, unpackedBuffer);
                     Host.Received?.Invoke(this, key, unpackedBuffer);
                 }
             }
