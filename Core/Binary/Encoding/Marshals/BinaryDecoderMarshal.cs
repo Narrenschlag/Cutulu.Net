@@ -21,6 +21,10 @@ public static partial class Decoder
         public IBinaryMarshal.DebugLogEnum DebugLog { get; set; } = debugLog;
         public readonly BinaryReader Reader = reader;
 
+        private Type LastContainerType;
+        private Type LastPropertyType;
+        private string LastPropertyName;
+
         /// <summary>
         /// The generic object encoder allows for custom encoding of objects.
         /// It is only called if a field or property is found to be typeof(object).
@@ -50,12 +54,20 @@ public static partial class Decoder
 
         public bool TryDecode<T>(out T value)
         {
-            var obj = Decode(typeof(T));
-
-            if (obj is T t && t.NotNull())
+            try
             {
-                value = t;
-                return true;
+                var obj = Decode(typeof(T));
+
+                if (obj is T t && t.NotNull())
+                {
+                    value = t;
+                    return true;
+                }
+            }
+
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to decode as {typeof(T)}: {ex.Message}\n{ex.StackTrace}");
             }
 
             value = default;
@@ -70,7 +82,7 @@ public static partial class Decoder
 
         public object Decode(Type type)
         {
-            BinaryEncoding.LastPropertyType = type;
+            BinaryEncoding.LastPropertyType = LastPropertyType = type;
 
             var firstIteration = FirstIterationConsumable;
             FirstIterationConsumable = false;
@@ -99,17 +111,50 @@ public static partial class Decoder
 
             static object DefaultCase(Marshal marshal, Type type)
             {
-                try
-                {
-                    return BinaryEncoding.TryGetEncoder(type, out var decoder) ?
-                        decoder.Decode(marshal, type) :
-                        marshal.DecodeUnknown(type);
-                }
+                if (BinaryEncoding.TryGetEncoder(type, out var decoder))
+                    try
+                    {
+                        return decoder.Decode(marshal, type);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new Exception(BuildErrorMessage(marshal, type, "custom"), ex);
+                    }
+                else
+                    try
+                    {
+                        return marshal.DecodeUnknown(type);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new Exception(BuildErrorMessage(marshal, type, "unknown"), ex);
+                    }
+            }
 
-                catch (Exception ex)
-                {
-                    throw new Exception($"Failed to decode type custom/unknown {type.Name}", ex);
-                }
+            static string BuildErrorMessage(Marshal marshal, Type type, string kind)
+            {
+                const int contextBytes = 16;
+
+                long errorPos = marshal.Position;
+                long dumpStart = Math.Max(0, errorPos - contextBytes);
+                long originalPos = errorPos; // Reader.BaseStream.Position, restore after
+
+                int dumpLen = (int)Math.Min(contextBytes * 2, marshal.Length - dumpStart);
+                Span<byte> buffer = stackalloc byte[dumpLen]; // stack, not heap
+
+                marshal.Position = dumpStart;
+                marshal.Reader.Read(buffer);
+                marshal.Position = originalPos; // restore cursor so nothing downstream breaks
+
+                // mark where the error byte sits within the dump
+                int markerOffset = (int)(errorPos - dumpStart);
+
+                Debug.LogError($"Failed: {Environment.StackTrace}");
+
+                return $"Failed to decode {kind} type {type.Name} on {marshal.LastContainerType}.{marshal.LastPropertyName} " +
+                       $"at stream position {errorPos} (remaining {marshal.RemainingByteLength}/{marshal.Length} bytes). " +
+                       $"Bytes around failure (error byte marked with *): " +
+                       $"{Convert.ToHexString(buffer[..markerOffset])} [*{(markerOffset < buffer.Length ? buffer[markerOffset].ToString("X2") : "EOF")}*] {(markerOffset + 1 < buffer.Length ? Convert.ToHexString(buffer[(markerOffset + 1)..]) : "")}";
             }
         }
 
@@ -159,16 +204,29 @@ public static partial class Decoder
                 if (HasGenericNestedObjectDecoder && _type == typeof(object))
                     return GenericNestedObjectDecoder.Invoke(this);
 
-                var _output = Activator.CreateInstance(_type);
-
                 var _manager = ParameterManager.Open(_type, null, BinaryEncoding.IncludeAttributes, BinaryEncoding.ExcludeAttributes);
+                var _output = Activator.CreateInstance(_type);
+                var _infos = _manager.GetInfos();
 
-                var infos = _manager.GetInfos();
-                foreach (ref var info in infos)
+                foreach (ref var info in _infos)
                 {
-                    BinaryEncoding.LastPropertyName = info.GetName();
+                    LastContainerType = _type;
+                    BinaryEncoding.LastPropertyName = LastPropertyName = info.GetName();
+                    /*BinaryEncoding.LastPropertyType =*/
+                    LastPropertyType = info.GetValueType(); // Added, maybe we may to remove this again
 
-                    info.SetValue(_output, Decode(info.GetValueType()));
+                    long fieldStart = Position;
+
+                    try
+                    {
+                        info.SetValue(_output, Decode(info.GetValueType()));
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new Exception(
+                            $"Failed to decode field '{info.GetName()}' ({info.GetValueType().Name}) on {_type.Name} " +
+                            $"at stream position {fieldStart} (remaining {RemainingByteLength} bytes): {ex.Message}", ex);
+                    }
                 }
 
                 return _output;

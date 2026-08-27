@@ -1,7 +1,6 @@
 namespace Cutulu.Core;
 
 using System.Collections.Generic;
-using System.Reflection;
 using System.IO;
 using System;
 
@@ -16,8 +15,9 @@ public static class BinaryEncoding
     #region Register Encoders
 
     public static readonly Dictionary<nint, BinaryEncoder> Encoders = [];
-    public static string LastPropertyName;
-    public static Type LastPropertyType;
+    [ThreadStatic] public static Type LastPropertyType;
+    [ThreadStatic] public static Type LastContainerType;
+    [ThreadStatic] public static string LastPropertyName;
     private static int EncoderCount;
 
     public static int GetEncoderCount() => EncoderCount;
