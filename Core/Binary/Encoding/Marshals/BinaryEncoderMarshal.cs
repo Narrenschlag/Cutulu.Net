@@ -1,6 +1,7 @@
 namespace Cutulu.Core;
 
 using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 using System.IO;
 using System;
 
@@ -17,6 +18,8 @@ public static partial class Encoder
         private readonly Action<Marshal, object> GenericNestedObjectEncoder = null;
         private readonly bool HasGenericNestedObjectEncoder = false;
         private bool FirstIterationConsumable = isFirstIteration;
+
+        private HashSet<object> _lazyObjectCycleBreaker;
 
         public IBinaryMarshal.DebugLogEnum DebugLog { get; set; } = debugLog;
         public readonly BinaryWriter Writer = writer;
@@ -183,14 +186,28 @@ public static partial class Encoder
             {
                 try
                 {
+                    _value = info.GetValue(_obj);
+
                     // Use generic object encoder for nested typeof(object) value if available
                     if (HasGenericNestedObjectEncoder && info.GetValueType() == typeof(object))
                     {
-                        GenericNestedObjectEncoder.Invoke(this, _obj);
+                        if (_value != null)
+                        {
+                            _lazyObjectCycleBreaker ??= new HashSet<object>(ReferenceEqualityComparer.Instance);
+
+                            if (_lazyObjectCycleBreaker.Add(_value) == false)
+                                throw new Exception($"Circular/self-referential nested object encode detected for type {_value.GetType()}");
+
+                            try { GenericNestedObjectEncoder.Invoke(this, _value); }
+                            finally { _lazyObjectCycleBreaker.Remove(_value); }
+                        }
+                        else
+                        {
+                            GenericNestedObjectEncoder.Invoke(this, _value);
+                        }
+
                         continue;
                     }
-
-                    _value = info.GetValue(_obj);
 
                     // Write value
                     if (_value == null) Writer.Write(default(byte)); // Write null string/array as empty string/array

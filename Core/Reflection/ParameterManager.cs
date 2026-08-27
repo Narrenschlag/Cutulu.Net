@@ -170,11 +170,7 @@ public partial class ParameterManager
     private static ParameterManager OpenInternal(Type type, Type baseType, Attribute[] include, Attribute[] exclude)
     {
         var key = new CacheKey(type, baseType ?? typeof(object), ComputeFilterHash(include, exclude));
-
-        if (!Cache.TryGetValue(key, out var cached))
-            Cache[key] = cached = new(type, baseType ?? typeof(object), include, exclude);
-
-        return cached;
+        return Cache.GetOrAdd(key, _ => new ParameterManager(type, baseType ?? typeof(object), include, exclude));
     }
 
     private static int ComputeFilterHash(Attribute[] include, Attribute[] exclude)
