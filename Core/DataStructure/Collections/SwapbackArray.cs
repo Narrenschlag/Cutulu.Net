@@ -190,7 +190,7 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
 
     public bool Remove(T item)
     {
-        if (item.IsNull()) return false;
+        if (item is null) return false; // Use non-godot null check to gurantee removal
 
         for (int i = 0; i < _count; i++)
         {
