@@ -8,6 +8,8 @@ namespace Cutulu.Network.Sockets
 
     using Core;
 
+    using Lock = System.Threading.Lock;
+
     public partial class TcpSocket
     {
         public TcpClient Client { get; private set; }
@@ -17,6 +19,9 @@ namespace Cutulu.Network.Sockets
 
         private CancellationTokenSource TokenSource { get; set; }
         public CancellationToken Token { get; private set; }
+
+        private readonly SemaphoreSlim _sendGate = new(1, 1);
+        private readonly Lock _sendLock = new();
 
         public bool Poll() => IsConnected && Socket.Poll(-1, SelectMode.SelectError) == false;
 
@@ -225,20 +230,24 @@ namespace Cutulu.Network.Sockets
             if (IsConnected == false || buffers.IsEmpty() || Client.GetStream() is not NetworkStream stream) return false;
 
             var _token = Token;
+            await _sendGate.WaitAsync(_token);
 
-            // Track last tcp send
-            lastTcpSend = DateTime.UtcNow;
-
-            for (int i = 0; i < buffers.Length && _token.IsCancellationRequested == false; i++)
+            try
             {
-                if (buffers[i].NotEmpty())
-                    await stream.WriteAsync(buffers[i], _token);
+                // Track last tcp send
+                lastTcpSend = DateTime.UtcNow;
+
+                for (int i = 0; i < buffers.Length && _token.IsCancellationRequested == false; i++)
+                    if (buffers[i].NotEmpty())
+                        await stream.WriteAsync(buffers[i], _token);
+
+                if (_token.IsCancellationRequested == false)
+                    await stream.FlushAsync(_token);
+
+                return _token.IsCancellationRequested == false;
             }
 
-            if (_token.IsCancellationRequested == false)
-                await stream.FlushAsync(_token);
-
-            return _token.IsCancellationRequested == false;
+            finally { _sendGate.Release(); }
         }
 
         /// <summary>
@@ -248,32 +257,33 @@ namespace Cutulu.Network.Sockets
         {
             if (IsConnected == false || buffers.IsEmpty() || Client.GetStream() is not NetworkStream stream) return false;
 
-            // Track last tcp send
-            lastTcpSend = DateTime.UtcNow;
-
-            try
+            lock (_sendLock)
             {
-                for (int i = 0; i < buffers.Length; i++)
+                // Track last tcp send
+                lastTcpSend = DateTime.UtcNow;
+
+                try
                 {
-                    if (buffers[i].NotEmpty())
-                        stream.Write(buffers[i]);
+                    for (int i = 0; i < buffers.Length; i++)
+                        if (buffers[i].NotEmpty())
+                            stream.Write(buffers[i]);
+
+                    stream.Flush();
                 }
 
-                stream.Flush();
-            }
-
-            catch (Exception ex)
-            {
-                switch (ex)
+                catch (Exception ex)
                 {
-                    case IOException:
-                        Debug.LogError($"{GetType().Name.ToUpper()}_CONNECTION_CLOSED_WHILE_SENDING");
-                        Disconnect(254);
-                        break;
+                    switch (ex)
+                    {
+                        case IOException:
+                            Debug.LogError($"{GetType().Name.ToUpper()}_CONNECTION_CLOSED_WHILE_SENDING");
+                            Disconnect(254);
+                            break;
 
-                    default:
-                        Debug.LogError($"{GetType().Name.ToUpper()}_ERROR({ex.GetType().Name}, {ex.Message})\n{ex.StackTrace}");
-                        break;
+                        default:
+                            Debug.LogError($"{GetType().Name.ToUpper()}_ERROR({ex.GetType().Name}, {ex.Message})\n{ex.StackTrace}");
+                            break;
+                    }
                 }
             }
 
