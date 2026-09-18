@@ -7,15 +7,14 @@ namespace Cutulu.Network
     using System.Linq;
     using Core;
 
-
 #if GODOT4_0_OR_GREATER
     using HttpRequest = Cutulu.Web.HttpRequest;
 #endif
 
     public static class IO
     {
-        public const string LocalhostIPv4 = CONST.LocalHostIPv4;
-        public const string LocalhostIPv6 = CONST.LocalHostIPv6;
+        public const string LocalhostIPv4 = IPv4.LocalAddress;
+        public const string LocalhostIPv6 = IPv6.LocalAddress;
 
         /// <summary>
         /// Returns address
@@ -58,43 +57,12 @@ namespace Cutulu.Network
         /// <summary>
         /// Returns full IPAddress in you local area network
         /// </summary>
-        public static IPAddress GetLanIPv4()
-        {
-            var host = Dns.GetHostEntry(Dns.GetHostName());
-            return host.AddressList.FirstOrDefault(ip =>
-                ip.AddressFamily == AddressFamily.InterNetwork &&
-                !IPAddress.IsLoopback(ip));
-        }
+        public static IPAddress GetLanIPv4() => IPv4.NetworkAddress;
 
         /// <summary>
         /// Returns full IPAddress in you local area network
         /// </summary>
-        public static IPAddress GetLanIPv6()
-        {
-            // Get all network interfaces
-            var interfaces = NetworkInterface.GetAllNetworkInterfaces();
-
-            foreach (NetworkInterface iface in interfaces)
-            {
-                // Filter out loopback and non-operational interfaces
-                if (iface.NetworkInterfaceType != NetworkInterfaceType.Ethernet ||
-                    iface.OperationalStatus != OperationalStatus.Up)
-                {
-                    continue;
-                }
-
-                // Get IPv6 addresses for the selected interface
-                foreach (UnicastIPAddressInformation ip in iface.GetIPProperties().UnicastAddresses)
-                {
-                    if (ip.Address.AddressFamily == AddressFamily.InterNetworkV6 && !ip.Address.IsIPv6LinkLocal && !ip.Address.IsIPv6SiteLocal)
-                    {
-                        return ip.Address;
-                    }
-                }
-            }
-
-            return null;
-        }
+        public static IPAddress GetLanIPv6() => IPv6.NetworkAddress;
 
 #if GODOT4_0_OR_GREATER
         /// <summary>
