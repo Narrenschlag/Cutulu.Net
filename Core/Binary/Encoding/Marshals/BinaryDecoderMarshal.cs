@@ -149,12 +149,11 @@ public static partial class Decoder
                 // mark where the error byte sits within the dump
                 int markerOffset = (int)(errorPos - dumpStart);
 
-                Debug.LogError($"Failed: {Environment.StackTrace}");
-
-                return $"Failed to decode {kind} type {type.Name} on {marshal.LastContainerType}.{marshal.LastPropertyName} " +
+                return $"Failed to decode {kind} type {type.Name} on {marshal.LastContainerType}.{marshal.LastPropertyName}. [Make sure you have an empty constructor for the type if it is a class!]" +
                        $"at stream position {errorPos} (remaining {marshal.RemainingByteLength}/{marshal.Length} bytes). " +
                        $"Bytes around failure (error byte marked with *): " +
-                       $"{Convert.ToHexString(buffer[..markerOffset])} [*{(markerOffset < buffer.Length ? buffer[markerOffset].ToString("X2") : "EOF")}*] {(markerOffset + 1 < buffer.Length ? Convert.ToHexString(buffer[(markerOffset + 1)..]) : "")}";
+                       $"{Convert.ToHexString(buffer[..markerOffset])} [*{(markerOffset < buffer.Length ? buffer[markerOffset].ToString("X2") : "EOF")}*] {(markerOffset + 1 < buffer.Length ? Convert.ToHexString(buffer[(markerOffset + 1)..]) : "")}" +
+                       $"\n{Environment.StackTrace}";
             }
         }
 
