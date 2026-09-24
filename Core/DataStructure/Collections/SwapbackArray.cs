@@ -5,25 +5,24 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
-using System.IO;
 using System;
 
 /// <summary>
 /// Written by Maximilian Schecklmann on 3th of Nov 2025, inspired by Nic Barker's implementation.
 /// </summary>
-public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollection, IEnumerable, IReadOnlyCollection<T>
+public class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollection, IEnumerable, IReadOnlyCollection<T>
 {
-    private T[] _data;
+    protected T[] _data;
 
-    private int _count;
+    protected int _count;
 
-    public int Count => _count;
-    public int Length => _count;
-    public int Capacity => _data.Length;
+    public virtual int Count => _count;
+    public virtual int Length => Count;
+    public virtual int Capacity => _data.Length;
 
-    public bool IsReadOnly => false; // Collections are not read-only by default
-    public bool IsSynchronized => false; // Not thread-safe
-    public object SyncRoot => this; // Use this instance as sync root
+    public virtual bool IsReadOnly => false; // Collections are not read-only by default
+    public virtual bool IsSynchronized => false; // Not thread-safe
+    public virtual object SyncRoot => this; // Use this instance as sync root
 
     public SwapbackArray(int capacity = 4)
     {
@@ -60,7 +59,7 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
         span.CopyTo(_data);
     }
 
-    public ref T this[int index]
+    public virtual ref T this[int index]
     {
         get
         {
@@ -71,7 +70,7 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Add(T item)
+    public virtual void Add(T item)
     {
         if (item.IsNull()) return;
 
@@ -85,13 +84,13 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void AddRange(params T[] items)
+    public virtual void AddRange(params T[] items)
     {
         AddRange(items.AsSpan());
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void AddRange(ReadOnlySpan<T> items)
+    public virtual void AddRange(ReadOnlySpan<T> items)
     {
         int newCount = _count + items.Length;
 
@@ -108,7 +107,7 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void AddRange(ICollection<T> items)
+    public virtual void AddRange(ICollection<T> items)
     {
         int newCount = _count + items.Count;
 
@@ -125,7 +124,7 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void RemoveAt(int index)
+    public virtual void RemoveAt(int index)
     {
         if ((uint)index >= (uint)_count) throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -136,7 +135,7 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void RemoveAt(uint index)
+    public virtual void RemoveAt(uint index)
     {
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, (uint)_count);
 
@@ -146,25 +145,25 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
         _data[_count] = default!;
     }
 
-    public T[] ToArray()
+    public virtual T[] ToArray()
     {
         T[] array = new T[_count];
         Array.Copy(_data, 0, array, 0, _count);
         return array;
     }
 
-    public Span<T> AsSpan() => _data.AsSpan(0, _count);
+    public virtual Span<T> AsSpan() => _data.AsSpan(0, _count);
 
-    public Span<T> AsSpan(int count) => _data.AsSpan(0, int.Min(_count, count));
+    public virtual Span<T> AsSpan(int count) => _data.AsSpan(0, int.Min(_count, count));
 
-    public Span<T> AsSpan(int start, int count)
+    public virtual Span<T> AsSpan(int start, int count)
     {
         start = Math.Max(0, Math.Min(start, _count));
         count = Math.Min(count, _count - start);
         return _data.AsSpan(start, count);
     }
 
-    public void Clear()
+    public virtual void Clear()
     {
         if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
         {
@@ -173,22 +172,22 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
         _count = 0;
     }
 
-    public bool Contains(T item)
+    public virtual bool Contains(T item)
     {
         return Array.IndexOf(_data, item, 0, _count) >= 0; // Only search within Count
     }
 
-    public bool Contains(T item, out int index)
+    public virtual bool Contains(T item, out int index)
     {
         return (index = Array.IndexOf(_data, item, 0, _count)) >= 0; // Only search within Count
     }
 
-    public void CopyTo(T[] array, int arrayIndex)
+    public virtual void CopyTo(T[] array, int arrayIndex)
     {
         Array.Copy(_data, 0, array, arrayIndex, _count);
     }
 
-    public bool Remove(T item)
+    public virtual bool Remove(T item)
     {
         if (item is null) return false; // Use non-godot null check to gurantee removal
 
@@ -204,7 +203,7 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
         return false;
     }
 
-    public bool Remove(T item, out int index)
+    public virtual bool Remove(T item, out int index)
     {
         index = 0;
 
@@ -222,7 +221,7 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
         return false;
     }
 
-    public IEnumerator<T> GetEnumerator()
+    public virtual IEnumerator<T> GetEnumerator()
     {
         for (int i = 0; i < _count; i++)
         {
@@ -235,7 +234,7 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
         return GetEnumerator();
     }
 
-    public void CopyTo(Array array, int index)
+    public virtual void CopyTo(Array array, int index)
     {
         Array.Copy(_data, 0, array, index, _count);
     }
@@ -243,12 +242,12 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
     /// <summary>
     /// Adds item to the array if it is not null and not already in it.
     /// </summary>
-    public bool TryAdd(T item) => TryAdd(item, out _);
+    public virtual bool TryAdd(T item) => TryAdd(item, out _);
 
     /// <summary>
     /// Adds item to the array if it is not null and not already in it.
     /// </summary>
-    public bool TryAdd(T item, out int index)
+    public virtual bool TryAdd(T item, out int index)
     {
         if (item.IsNull())
         {
@@ -272,7 +271,7 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
     /// <summary>
     /// Removes all duplicate items and null instances from the array.
     /// </summary>
-    public SwapbackArray<T> ClearDuplicates()
+    public virtual SwapbackArray<T> ClearDuplicates()
     {
         HashSet<T> seen = new(int.Max(4, _count / 2));
 
@@ -288,7 +287,7 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
     /// <summary>
     /// Adds items to the array if they are not null and not already in it.
     /// </summary>
-    public void TryAddRange(ReadOnlySpan<T> items)
+    public virtual void TryAddRange(ReadOnlySpan<T> items)
     {
         if (items.IsEmpty) return;
 
@@ -308,9 +307,9 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
         }
     }
 
-    public void TryAddRange(params T[] items) => TryAddRange(items.AsSpan());
+    public virtual void TryAddRange(params T[] items) => TryAddRange(items.AsSpan());
 
-    public int IndexOf(T item)
+    public virtual int IndexOf(T item)
     {
         if (item.NotNull())
             for (int i = 0; i < _count; i++)
@@ -320,6 +319,13 @@ public sealed class SwapbackArray<T> : ICollection<T>, IEnumerable<T>, ICollecti
             }
 
         return -1;
+    }
+
+    public virtual void Enumerate(Action<T> action)
+    {
+        for (int i = 0; i < _count; i++)
+            try { action(_data[i]); }
+            catch (Exception e) { Debug.LogError($"Failed to invoke action: {e.Message}\n{e.StackTrace}"); }
     }
 }
 
