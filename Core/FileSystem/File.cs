@@ -144,6 +144,16 @@ public partial class File : IDisposable
         await System.IO.File.WriteAllBytesAsync(SystemPath, _buffer, token);
     }
 
+    public async Task WriteAsync<T>(Task<T> objectTask, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(objectTask);
+
+        T value = await objectTask;
+        byte[] buffer = value.Encode();
+
+        await WriteAsync(buffer, cancellationToken);
+    }
+
     public async Task WriteTextAsync(string _string, CancellationToken token = default)
     {
         if (_string.IsEmpty() && Exists() == false) return;
